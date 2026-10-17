@@ -1,0 +1,21 @@
+[Unit]
+Description=singulari — Letta server (the agent's brain + memory)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/singulari
+Environment=SINGULARI_HOME=/opt/singulari
+# Point Letta at the local Ollama. Do NOT set E2B_API_KEY: with it unset, the
+# agent's custom tools run in this server's own environment — i.e. as root on
+# this box. That is the intended "full root, minimal sandbox".
+Environment=OLLAMA_BASE_URL=http://localhost:11434
+Environment=LETTA_SERVER_PASSWORD=
+ExecStart=/opt/singulari/.venv/bin/letta server --host 127.0.0.1 --port 8283
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

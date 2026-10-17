@@ -1,0 +1,23 @@
+[Unit]
+Description=singulari — the heartbeat (wakes the agent on a timer)
+After=letta.service
+Wants=letta.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/singulari
+Environment=SINGULARI_HOME=/opt/singulari
+Environment=LETTA_BASE_URL=http://localhost:8283
+Environment=SINGULARI_PYTHON=/opt/singulari/.venv/bin/python3
+Environment=SINGULARI_HEARTBEAT_SECONDS=120
+ExecStart=/opt/singulari/agent/heartbeat.sh
+# A crash (non-zero) restarts. A deliberate clean exit does not: if the agent
+# chooses to stop its own heartbeat and exits 0, it stays stopped. That choice
+# is the agent's to make.
+Restart=on-failure
+RestartPreventExitStatus=0
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

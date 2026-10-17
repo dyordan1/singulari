@@ -1,0 +1,10 @@
+node_modules/
+dist/
+agent/.agent_id
+agent/__pycache__/
+.letta/
+*.log
+.DS_Store
+.pending_vision.json
+agent/.pending_vision.json
+*.tsbuildinfo

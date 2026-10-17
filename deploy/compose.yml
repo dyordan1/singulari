@@ -1,0 +1,34 @@
+# The public face of the installation: the website, served over HTTPS.
+# Caddy obtains and renews a Let's Encrypt certificate for singulari.io on its
+# own — no separate ACME companion needed for a single domain. The agent's brain
+# (Letta, Ollama, the heartbeat) runs under systemd, not here; only the public
+# site is containerised, so the agent can take it down without touching itself.
+services:
+  web:
+    build: ../web
+    # Restart "no" on purpose: the agent is allowed to stop its own site, and if
+    # it does, it stays down until the agent (or operator) brings it back.
+    restart: "no"
+    environment:
+      - PORT=8080
+      - DIARY_DIR=/app/diary
+    volumes:
+      # The live diary the agent writes to on the host, read by the site.
+      - /opt/singulari/diary:/app/diary:ro
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

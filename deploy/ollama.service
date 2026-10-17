@@ -1,0 +1,18 @@
+# NOTE: the official Ollama install script (https://ollama.com/install.sh)
+# already installs and enables an ollama.service. Use that one if present. This
+# file is here only as a reference for a manual install.
+[Unit]
+Description=Ollama model server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ollama serve
+Environment=OLLAMA_HOST=127.0.0.1:11434
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,3 @@
+singulari.io {
+	reverse_proxy web:8080
+}
