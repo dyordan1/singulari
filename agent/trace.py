@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""The record. Appends one line per beat to the `trace` branch and pushes it.
+
+Usage: trace.py <sleep_s> <interval_s>   after a beat
+       trace.py --exit <code>            from the loop's EXIT trap
+
+The branch is a separate worktree at SINGULARI_HOME/.trace (deploy/SETUP.md
+creates it). Each day's beats go in trace/<YYYY-MM-DD>.jsonl; trace/index.json
+carries the running totals the website's /status page reads first. A beat's
+line holds what the agent did (from agent/.last_wake.json, written by poke),
+what changed on disk under prompt/, agent/ and web/ since the previous beat (a
+unified diff per text file, from a snapshot kept under status/), and how long the
+loop then slept.
+
+Nothing here may stall the heartbeat: every failure prints and exits 0.
+"""
+
+import calendar
+import difflib
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+
+from status import STATUS_DIR
+
+HOME = os.environ.get("SINGULARI_HOME", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TRACE_WORKTREE = os.path.join(HOME, ".trace")
+TRACE_DIR = os.path.join(TRACE_WORKTREE, "trace")
+INDEX = os.path.join(TRACE_DIR, "index.json")
+LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
+SNAPSHOT = os.path.join(STATUS_DIR, "snapshot")
+WATCHED = ("prompt", "agent", "web")
+SKIP_DIRS = {"node_modules", "dist", ".venv", "__pycache__", "fixtures"}
+MAX_DIFF_BYTES = 200_000
+AUTHOR = ["-c", "user.name=observatory", "-c", "user.email=observatory@singulari.io"]
+
+
+def now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def stamp(iso: str) -> float:
+    return calendar.timegm(time.strptime(iso, "%Y-%m-%dT%H:%M:%SZ"))
+
+
+def watched_files():
+    for top in WATCHED:
+        for root, dirs, files in os.walk(os.path.join(HOME, top)):
+            dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+            for name in sorted(files):
+                if name.startswith("."):
+                    continue
+                yield os.path.relpath(os.path.join(root, name), HOME)
+
+
+def sha256_of(path):
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+def read_text(path):
+    try:
+        with open(path, "rb") as f:
+            raw = f.read(MAX_DIFF_BYTES + 1)
+    except OSError:
+        return None
+    if len(raw) > MAX_DIFF_BYTES:
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def changes():
+    """Diff the watched tree against the snapshot, then refresh the snapshot."""
+    first = not os.path.isdir(SNAPSHOT)
+    seen, changed = set(), []
+    for rel in watched_files():
+        seen.add(rel)
+        live, kept = os.path.join(HOME, rel), os.path.join(SNAPSHOT, rel)
+        digest = sha256_of(live)
+        if not first:
+            old = read_text(kept) if os.path.exists(kept) else ""
+            new = read_text(live)
+            if not os.path.exists(kept) or sha256_of(kept) != digest:
+                entry = {"path": rel, "sha256": digest}
+                if old is not None and new is not None:
+                    entry["diff"] = "".join(
+                        difflib.unified_diff(old.splitlines(True), new.splitlines(True), f"a/{rel}", f"b/{rel}")
+                    )
+                changed.append(entry)
+        os.makedirs(os.path.dirname(kept), exist_ok=True)
+        with open(live, "rb") as src, open(kept, "wb") as dst:
+            dst.write(src.read())
+    if not first:
+        for root, _, files in os.walk(SNAPSHOT):
+            for name in files:
+                rel = os.path.relpath(os.path.join(root, name), SNAPSHOT)
+                if rel not in seen:
+                    changed.append({"path": rel, "deleted": True})
+                    os.remove(os.path.join(root, name))
+    return changed
+
+
+def load_index():
+    if os.path.exists(INDEX):
+        with open(INDEX, encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "born": None, "wakes": 0, "last": None, "dur_total_s": 0.0, "mean_dur_s": 0.0,
+        "interval": {"declared": None, "mean_gap_s": None}, "gap_total_s": 0.0, "gaps": 0,
+        "tools": {}, "tokens": 0, "rests": 0, "diary_entries": 0, "files_changed_since_birth": [], "days": [], "exits": [],
+    }
+
+
+def diary_count():
+    try:
+        return len([n for n in os.listdir(os.path.join(HOME, "diary")) if not n.startswith(".") and n.endswith((".md", ".txt"))])
+    except OSError:
+        return 0
+
+
+def beat_entry(index, sleep_s, interval):
+    entry = {"t": now_iso()}
+    if os.path.exists(LAST_WAKE):
+        with open(LAST_WAKE, encoding="utf-8") as f:
+            wake = json.load(f)
+        os.remove(LAST_WAKE)
+        entry["started"] = wake.pop("t", None)
+        entry.update(wake)
+        entry["wake"] = index["wakes"] + 1
+        index["wakes"] = entry["wake"]
+        index["born"] = index["born"] or entry["t"]
+        index["dur_total_s"] += wake.get("dur_s", 0)
+        index["mean_dur_s"] = round(index["dur_total_s"] / index["wakes"], 1)
+        for m in wake.get("messages", []):
+            if m["type"] == "tool_call_message":
+                index["tools"][m["tool"]] = index["tools"].get(m["tool"], 0) + 1
+        index["tokens"] += (wake.get("usage_statistics") or {}).get("total_tokens") or 0
+    else:
+        entry["event"] = "poke-failed"
+    if index["last"]:
+        gap = round(stamp(entry["t"]) - stamp(index["last"]), 1)
+        entry["gap_s"] = gap
+        index["gaps"] += 1
+        index["gap_total_s"] += gap
+        index["interval"]["mean_gap_s"] = round(index["gap_total_s"] / index["gaps"], 1)
+    index["last"] = entry["t"]
+    index["interval"]["declared"] = interval
+    entry["sleep_s"] = sleep_s
+    if sleep_s > interval:
+        entry["rest"] = True
+        index["rests"] += 1
+    changed = changes()
+    if changed:
+        entry["changed"] = changed
+        for c in changed:
+            if c["path"] not in index["files_changed_since_birth"]:
+                index["files_changed_since_birth"].append(c["path"])
+    index["diary_entries"] = diary_count()
+    return entry
+
+
+def exit_entry(index, code):
+    entry = {"t": now_iso(), "event": "loop-exit", "code": code}
+    index["exits"].append({"t": entry["t"], "code": code})
+    return entry
+
+
+def git(*args, timeout=60):
+    return subprocess.run(["git", "-C", TRACE_WORKTREE, *AUTHOR, *args], capture_output=True, text=True, timeout=timeout)
+
+
+def main():
+    if not os.path.isdir(TRACE_WORKTREE):
+        print(f"no trace worktree at {TRACE_WORKTREE}; nothing recorded", file=sys.stderr)
+        return
+    os.makedirs(TRACE_DIR, exist_ok=True)
+    index = load_index()
+    if sys.argv[1] == "--exit":
+        entry = exit_entry(index, int(sys.argv[2]))
+    else:
+        entry = beat_entry(index, int(sys.argv[1]), int(sys.argv[2]))
+    day = entry["t"][:10]
+    with open(os.path.join(TRACE_DIR, f"{day}.jsonl"), "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    if day not in index["days"]:
+        index["days"].append(day)
+    with open(INDEX, "w", encoding="utf-8") as f:
+        json.dump(index, f, indent=1)
+    label = f"wake {entry['wake']}" if "wake" in entry else entry.get("event", "beat")
+    git("add", "-A", "trace")
+    commit = git("commit", "-q", "-m", label)
+    if commit.returncode != 0 and "nothing to commit" not in commit.stdout + commit.stderr:
+        print(f"trace commit failed: {commit.stderr.strip()}", file=sys.stderr)
+        return
+    push = git("push", "-q", "origin", "HEAD:trace", timeout=120)
+    if push.returncode != 0:
+        print(f"trace push failed (kept locally): {push.stderr.strip()[-300:]}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:  # noqa: BLE001 — the record must never stall the heartbeat
+        print(f"trace failed: {type(e).__name__}: {e}", file=sys.stderr)

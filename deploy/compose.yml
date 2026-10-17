@@ -12,9 +12,11 @@ services:
     environment:
       - PORT=8080
       - DIARY_DIR=/app/diary
+      - STATUS_DIR=/app/status
     volumes:
-      # The live diary the agent writes to on the host, read by the site.
+      # The live diary and status line the agent writes on the host, read by the site.
       - /opt/singulari/diary:/app/diary:ro
+      - /opt/singulari/status:/app/status:ro
     expose:
       - "8080"
 

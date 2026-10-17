@@ -8,3 +8,8 @@ agent/__pycache__/
 .pending_vision.json
 agent/.pending_vision.json
 *.tsbuildinfo
+.venv/
+.trace/
+agent/.last_wake.json
+status/*
+!status/.gitkeep

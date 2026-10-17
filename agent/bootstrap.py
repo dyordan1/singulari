@@ -11,18 +11,22 @@ fresh agent — the agent is told, in the file itself, that it may do exactly
 that.
 """
 
+import importlib.util
 import inspect
+import json
 import os
 import sys
-import importlib.util
+import time
 
 from letta_client import Letta
+from status import write_now
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ID_FILE = os.path.join(HERE, ".agent_id")
 SINGULARI_HOME = os.environ.get("SINGULARI_HOME", ROOT)
 PENDING_VISION = os.path.join(SINGULARI_HOME, "agent", ".pending_vision.json")
+LAST_WAKE = os.path.join(SINGULARI_HOME, "agent", ".last_wake.json")
 
 AGENT_NAME = "singulari"
 LETTA_BASE_URL = os.environ.get("LETTA_BASE_URL", "http://localhost:8283")
@@ -121,7 +125,6 @@ def main():
         if not created:
             print(f"alive: {agent.id} ({AGENT_NAME})")
         return
-    import json
 
     pending = None
     if os.path.exists(PENDING_VISION):
@@ -148,14 +151,93 @@ def main():
                 },
             },
         ]
-        resp = client.agents.messages.create(agent.id, messages=[{"role": "user", "content": content}])
+        kwargs = {"messages": [{"role": "user", "content": content}]}
     else:
-        resp = client.agents.messages.create(agent.id, input=WAKE_TEXT)
-    for msg in getattr(resp, "messages", []) or []:
-        kind = getattr(msg, "message_type", "")
-        text = getattr(msg, "content", None) or getattr(msg, "reasoning", None) or getattr(msg, "tool_call", None)
-        if text:
-            print(f"[{kind}] {text}")
+        kwargs = {"input": WAKE_TEXT}
+
+    wake = {"t": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "messages": []}
+    started = time.monotonic()
+    write_now("waking")
+    try:
+        for msg in client.agents.messages.create(agent.id, streaming=True, **kwargs):
+            record = describe(msg)
+            if record is None:
+                continue
+            if record["type"] in ("stop_reason", "usage_statistics"):
+                wake[record["type"]] = record["value"]
+                continue
+            if record["type"] == "error_message":
+                wake["error"] = record["text"]
+            wake["messages"].append(record)
+            write_now(*state_of(record))
+            print(f"[{record['type']}] {record.get('tool') or ''} {record.get('text') or record.get('args') or ''}"[:300])
+    except Exception as e:  # noqa: BLE001 — record the broken turn, then fail the poke
+        wake["error"] = f"{type(e).__name__}: {e}"[:500]
+        raise
+    finally:
+        wake["dur_s"] = round(time.monotonic() - started, 1)
+        with open(LAST_WAKE, "w", encoding="utf-8") as f:
+            json.dump(wake, f)
+
+
+# What the website says the agent is doing while each kind of step runs.
+TOOL_STATES = {
+    "shell": "running a command",
+    "read_file": "reading a file",
+    "write_file": "writing a file",
+    "web_fetch": "reading the web",
+    "screenshot": "looking at a page",
+}
+
+
+def describe(msg):
+    """Flatten one streamed Letta message into a plain dict, or None to skip it."""
+    kind = getattr(msg, "message_type", None) or ""
+    if kind == "reasoning_message":
+        return {"type": kind, "text": msg.reasoning}
+    if kind == "hidden_reasoning_message":
+        return {"type": kind}
+    if kind == "error_message":
+        return {"type": kind, "text": f"{msg.error_type}: {msg.message}"[:500]}
+    if kind == "assistant_message":
+        c = msg.content
+        text = c if isinstance(c, str) else " ".join(getattr(part, "text", "") for part in c)
+        return {"type": kind, "text": text}
+    if kind == "tool_call_message":
+        call = msg.tool_call
+        raw = getattr(call, "arguments", None) or ""
+        try:
+            args = json.loads(raw)
+        except ValueError:
+            args = raw
+        return {"type": kind, "tool": getattr(call, "name", None) or "", "args": args}
+    if kind == "tool_return_message":
+        ret = msg.tool_return or ""
+        if len(ret) > 2000:
+            ret = ret[:2000] + " [...truncated...]"
+        return {"type": kind, "status": msg.status, "text": ret}
+    if kind == "stop_reason":
+        return {"type": kind, "value": str(msg.stop_reason)}
+    if kind == "usage_statistics":
+        return {"type": kind, "value": {k: getattr(msg, k, None) for k in ("prompt_tokens", "completion_tokens", "total_tokens", "step_count")}}
+    return None
+
+
+def state_of(record):
+    kind = record["type"]
+    if kind == "tool_call_message":
+        tool, args = record["tool"], record["args"]
+        detail = ""
+        if isinstance(args, dict):
+            detail = str(args.get("command") or args.get("url") or args.get("path") or "")
+        if tool in TOOL_STATES:
+            return TOOL_STATES[tool], detail
+        if "memory" in tool or "search" in tool:
+            return "tending its memory", ""
+        return "working", tool
+    if kind == "assistant_message":
+        return "saying something", ""
+    return "thinking", ""
 
 
 if __name__ == "__main__":

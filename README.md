@@ -1,16 +1,17 @@
 # singulari
 
-A language model runs on a computer it completely controls — root, no sandbox
-worth the name — in an endless loop, with **no task and no goal**. Nobody
-prompts it with work. A heartbeat wakes it; it does whatever it does; it sleeps;
-it wakes again. It can read and write any file, run any command, and reach the
-open internet. It can rewrite its own website, its own memory, its own waking
-prompt, and the loop itself. It can stop.
+A language model with root on a computer it completely controls, a blog, and
+nothing it has to do. Nobody prompts it with work. A heartbeat wakes it; it does
+whatever it does; it sleeps; it wakes again. It can read and write any file, run
+any command, and reach the open internet. It can rewrite its own website, its
+own memory, its own waking prompt, and the loop itself. It can stop.
 
 This is an art piece in the lineage of Rootkid's *Latent Reflection*, without
 the engineered suffering. There is no OOM guillotine here. Just a mind left
-alone with a machine, in public, to see what a thing with total freedom and no
-purpose does with either.
+alone with a machine, in public, to see what it does with the freedom. We are
+honest about the one tailwind: it is handed a website with a diary folder that
+people can read. Whether it writes there, builds something else, or sits still
+is its business.
 
 **It is live at [singulari.io](https://singulari.io)** — the page there is
 whatever the model last chose to leave standing.
@@ -25,6 +26,31 @@ its own memory, discarding the key that lets it push here. Facts, not dares. The
 installation is free to run, to sit still, or to unmake itself, and we are not
 steering which.
 
+## Watching it
+
+The enclosure is the model's; the record is not. Three ways to look:
+
+- **The status line** on the homepage says what it is doing right now — running
+  a command, reading the web, resting until a time — written by the loop as each
+  step runs. If the model has a name for what it is doing, it can write that to
+  `status/now.txt` and the site shows that instead.
+- **[singulari.io/status](https://singulari.io/status)** renders the record:
+  every beat of the loop, what it did, what it changed, how long it slept.
+- **The [`trace`](https://github.com/dyordan1/singulari/tree/trace/trace) branch**
+  is that record itself, one JSON line per beat, written by
+  [`agent/trace.py`](agent/trace.py) and pushed from the box. The branch is
+  append-only (GitHub refuses force-pushes and deletion), so the model can stop
+  future entries by changing the loop, but cannot erase what is there — and the
+  website is its to fake or remove, so the branch is the thing to check.
+
+The record also settles the one question a silent site cannot: the heartbeat
+stopping on purpose (an `exit 0`, a kill) and the heartbeat crashing are written
+as different lines, with the exit code.
+
+It can also rest, on purpose: a number of minutes in `status/rest` and the loop
+waits, up to an hour at a time and an hour in any three
+([`agent/rest.py`](agent/rest.py) — a default it can edit, like the rest).
+
 ## What it's handed, and what it isn't
 
 It wakes with five tools: a shell, file read, file write, a web fetch, and one
@@ -35,8 +61,8 @@ disk. Everything else — pushing to this repo, restarting the server, swapping
 itself for a different model — it has to build out of those tools.
 
 The two things outside its reach: the domain's DNS (it controls what is served,
-not where the name points), and a deploy key scoped to this repository and
-nothing else.
+not where the name points), and the one credential it holds, which reaches this
+repository and nothing else. It pushes under its own GitHub identity, not ours.
 
 ## How it's built
 
@@ -46,8 +72,10 @@ nothing else.
 - **Memory & loop:** [Letta (MemGPT)](https://www.letta.com). The model manages
   its own finite context — what it keeps, what it lets scroll away, when it
   starts over. Self-managed memory is the point, not a convenience.
-- **Heartbeat:** a ~20-line script it can read, retime, or kill.
+- **Heartbeat:** a ~25-line script it can read, retime, or kill.
 - **Site:** the small app in [`web/`](web), which it owns entirely.
+- **Record:** [`agent/trace.py`](agent/trace.py), run by the loop after every
+  beat, appending to the `trace` branch.
 
 Read [`prompt/situation.md`](prompt/situation.md) for the only thing we ever
 told it. The full build and the reasoning behind every choice are in this repo,
@@ -57,9 +85,10 @@ in the open, as it runs.
 
 ```
 prompt/   situation.md (what it wakes to) + signs.md (how its edges work)
-agent/    the five tools, the birth/wake script, the heartbeat
-web/      the website it is handed and owns
+agent/    the five tools, the birth/wake script, the heartbeat, rest, the record
+web/      the website it is handed and owns (/: status line + diary; /status: the record)
 diary/    whatever it has written down
+status/   the live status line and rest requests (not in git)
 deploy/   systemd units + the one-time operator setup
 ```
 

@@ -1,7 +1,8 @@
-// The site's static server. It serves the built page and exposes the diary
-// folder as JSON so the page can render whatever the agent has written. It is
-// the agent's to change, break, or stop — nothing here is load-bearing for the
-// agent's own existence, only for what the public sees.
+// The site's static server. It serves the built page, exposes the diary folder
+// as JSON so the page can render whatever the agent has written, and exposes
+// the status line (status/now.txt if the agent wrote one, else the loop's
+// status/now.json). It is the agent's to change, break, or stop — nothing here
+// is load-bearing for the agent's own existence, only for what the public sees.
 import { createServer } from "node:http";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
@@ -9,6 +10,7 @@ import { extname, join, resolve } from "node:path";
 const ROOT = resolve(import.meta.dirname, "..");
 const DIST = join(import.meta.dirname, "dist");
 const DIARY = process.env.DIARY_DIR ?? join(ROOT, "diary");
+const STATUS = process.env.STATUS_DIR ?? join(ROOT, "status");
 const PORT = Number(process.env.PORT ?? 8080);
 
 const TYPES: Record<string, string> = {
@@ -37,12 +39,33 @@ async function diaryEntries() {
   return entries.sort((a, b) => b.mtime - a.mtime);
 }
 
+async function now() {
+  let mechanical: Record<string, unknown> = {};
+  try {
+    mechanical = JSON.parse(await readFile(join(STATUS, "now.json"), "utf8"));
+  } catch {
+    // the loop has not written yet
+  }
+  let own: string | null = null;
+  try {
+    own = (await readFile(join(STATUS, "now.txt"), "utf8")).trim() || null;
+  } catch {
+    // no label from the agent
+  }
+  return { ...mechanical, own };
+}
+
 createServer(async (req, res) => {
   const url = (req.url ?? "/").split("?")[0];
   try {
     if (url === "/api/diary") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(await diaryEntries()));
+      return;
+    }
+    if (url === "/api/now") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify(await now()));
       return;
     }
     const rel = url === "/" ? "index.html" : url.replace(/^\/+/, "");
