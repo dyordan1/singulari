@@ -8,8 +8,10 @@ The agent is a model, five tools, and a folder of files that is its memory:
                         as it happens; the tail that fits the window is replayed
 
 The system prompt is prompt/situation.md, the mechanics below, and self.md as
-last written. A wake sends one short message, then runs tool calls until the
-model answers without one or the step cap is hit. The wake is summarised to
+last written. A wake sends one short message with the time, then runs tool
+calls until the model answers without one or the step cap is hit. A screenshot
+is handed over by the tool as a file and placed in front of the model right
+after the call, as an image. The wake is summarised to
 agent/.last_wake.json for the record (agent/trace.py) and narrated step by step
 to status/now.json for the website.
 """
@@ -38,7 +40,6 @@ MODEL = "qwen3-vl:32b"
 NUM_CTX = 32768
 HISTORY_CHARS = 90_000
 MAX_STEPS = 40
-WAKE_TEXT = "(the loop wakes you)"
 
 MECHANICS = f"""
 
@@ -144,18 +145,15 @@ def recent_history():
     return msgs[i:]
 
 
-def wake_message():
-    pending = None
-    if os.path.exists(PENDING_VISION):
-        try:
-            pending = json.loads(read(PENDING_VISION))
-        except ValueError:
-            pending = None
-        os.remove(PENDING_VISION)
-    if pending and pending.get("data"):
-        text = f"{WAKE_TEXT} (the page you captured, {pending.get('url', '?')}, is in front of you now)"
-        return {"role": "user", "content": text}, [pending["data"]]
-    return {"role": "user", "content": WAKE_TEXT}, []
+def show_capture(messages):
+    """If a tool left a screenshot behind, put it in front of the model now."""
+    if not os.path.exists(PENDING_VISION):
+        return
+    pending = json.loads(read(PENDING_VISION))
+    os.remove(PENDING_VISION)
+    shown = {"role": "user", "content": f"(the page you captured, {pending.get('url', '?')}, is in front of you)"}
+    messages.append({**shown, "images": [pending["data"]]})
+    remember(shown)
 
 
 def chat(messages, tools):
@@ -230,6 +228,7 @@ def run_tool(call, tools, messages, wake):
     msg = {"role": "tool", "tool_name": name, "content": result}
     messages.append(msg)
     remember(msg)
+    show_capture(messages)
 
 
 def main():
@@ -242,8 +241,8 @@ def main():
     tools = load_tools()
     specs = tool_specs(tools)
     messages = [{"role": "system", "content": system_prompt()}, *recent_history()]
-    first, images = wake_message()
-    messages.append({**first, "images": images} if images else first)
+    first = {"role": "user", "content": time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC)", time.gmtime())}
+    messages.append(first)
     remember(first)
 
     wake = {

@@ -24,7 +24,7 @@ import subprocess
 import sys
 import time
 
-from status import STATUS_DIR
+from status import STATUS_DIR, write_now
 
 HOME = os.environ.get("SINGULARI_HOME", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TRACE_WORKTREE = os.path.join(HOME, ".trace")
@@ -176,6 +176,12 @@ def git(*args, timeout=60):
 
 
 def main():
+    if sys.argv[1] == "--exit":
+        write_now("the loop has stopped", f"exit {sys.argv[2]}")
+        try:
+            os.remove(os.path.join(STATUS_DIR, "now.txt"))
+        except FileNotFoundError:
+            pass
     if not os.path.isdir(TRACE_WORKTREE):
         print(f"no trace worktree at {TRACE_WORKTREE}; nothing recorded", file=sys.stderr)
         return

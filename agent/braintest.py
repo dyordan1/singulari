@@ -25,8 +25,12 @@ SCRIPT = [
         {"message": {}, "done": True, "prompt_eval_count": 100, "eval_count": 20},
     ],
     [
-        {"message": {"content": "There is a machine. I ran a command."}},
+        {"message": {"tool_calls": [{"function": {"name": "write_file", "arguments": {"path": "PENDING", "content": '{"url": "http://x", "data": "AAAA"}'}}}]}},
         {"message": {}, "done": True, "prompt_eval_count": 150, "eval_count": 10},
+    ],
+    [
+        {"message": {"content": "There is a machine. I ran a command and saw a page."}},
+        {"message": {}, "done": True, "prompt_eval_count": 180, "eval_count": 10},
     ],
     [
         {"message": {"content": "Still here."}},
@@ -62,6 +66,7 @@ def main():
     home = tempfile.mkdtemp(prefix="singulari-brain-")
     os.makedirs(os.path.join(home, "agent"))
     env = {**os.environ, "SINGULARI_HOME": home, "OLLAMA_HOST": f"http://127.0.0.1:{server.server_port}"}
+    SCRIPT[1][0]["message"]["tool_calls"][0]["function"]["arguments"]["path"] = os.path.join(home, "agent", ".pending_vision.json")
 
     def wake():
         return subprocess.run([PY, os.path.join(HERE, "brain.py")], env=env, capture_output=True, text=True)
@@ -73,9 +78,9 @@ def main():
 
     record = json.load(open(os.path.join(home, "agent", ".last_wake.json")))
     types = [m["type"] for m in record["messages"]]
-    check("wake record order", types == ["reasoning_message", "tool_call_message", "tool_return_message", "assistant_message"], str(types))
+    check("wake record order", types == ["reasoning_message", "tool_call_message", "tool_return_message", "tool_call_message", "tool_return_message", "assistant_message"], str(types))
     check("tool really ran", "braintest-hi" in record["messages"][2]["text"])
-    check("usage summed", record["usage_statistics"] == {"prompt_tokens": 250, "completion_tokens": 30, "total_tokens": 280, "step_count": 2})
+    check("usage summed", record["usage_statistics"] == {"prompt_tokens": 430, "completion_tokens": 40, "total_tokens": 470, "step_count": 3})
     check("stop reason", record["stop_reason"] == "end_turn")
 
     now = json.load(open(os.path.join(home, "status", "now.json")))
@@ -86,16 +91,21 @@ def main():
     check("shell schema from docstring", first["tools"][0]["function"]["parameters"]["properties"]["command"]["description"].startswith("The shell command"))
     check("self.md in system prompt", "I have just woken for the first time." in first["messages"][0]["content"])
     check("second step carries the tool result", REQUESTS[1]["messages"][-1]["role"] == "tool")
+    shown = REQUESTS[2]["messages"][-1]
+    check("capture shown in the same wake", shown["role"] == "user" and shown.get("images") == ["AAAA"] and "http://x" in shown["content"], json.dumps(shown)[:200])
+    check("capture consumed", not os.path.exists(os.path.join(home, "agent", ".pending_vision.json")))
+    check("wake message carries the time", " UTC)" in REQUESTS[0]["messages"][-1]["content"])
 
     history = [json.loads(line) for line in open(os.path.join(home, "memory", "history.jsonl"))]
-    check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant"])
+    check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"])
+    check("image not kept in history", "images" not in history[5])
 
     r = wake()
     check("second wake exits 0", r.returncode == 0, r.stderr[-400:])
     check("not born twice", "born:" not in r.stdout)
-    replay = [m["role"] for m in REQUESTS[2]["messages"]]
-    check("second wake replays the first", replay == ["system", "user", "assistant", "tool", "assistant", "user"], str(replay))
-    check("replayed tool call intact", REQUESTS[2]["messages"][2]["tool_calls"][0]["function"]["name"] == "shell")
+    replay = [m["role"] for m in REQUESTS[3]["messages"]]
+    check("second wake replays the first", replay == ["system", "user", "assistant", "tool", "assistant", "tool", "user", "assistant", "user"], str(replay))
+    check("replayed tool call intact", REQUESTS[3]["messages"][2]["tool_calls"][0]["function"]["name"] == "shell")
     print("brain OK")
 
 

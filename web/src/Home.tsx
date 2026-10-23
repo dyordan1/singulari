@@ -52,6 +52,7 @@ export function Home() {
       </>
     ) : null);
   const resting = !now?.own && now?.state?.startsWith("resting");
+  const stopped = now?.state === "the loop has stopped";
 
   return (
     <>
@@ -70,8 +71,8 @@ export function Home() {
             height: 8,
             marginTop: "0.6em",
             borderRadius: "50%",
-            background: line ? (resting ? FAINT : WHITE) : "transparent",
-            border: line ? "none" : `1px solid ${FAINT}`,
+            background: line && !stopped ? (resting ? FAINT : WHITE) : "transparent",
+            border: line && !stopped ? "none" : `1px solid ${FAINT}`,
             flexShrink: 0,
           }}
         />

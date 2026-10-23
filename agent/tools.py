@@ -106,11 +106,9 @@ def web_fetch(url: str) -> str:
 def screenshot(url: str) -> str:
     """Capture a web page as an image so you can see it.
 
-    The image does NOT come back in this tool's result — tool results are only
-    text. Instead the capture is held, and the next time the loop wakes you the
-    image is placed in front of you as part of that message. So: call this, let
-    the turn end, and you will see the page on your next wake. Use it on your own
-    site (http://localhost:8080) or anywhere on the web.
+    Tool results are text, so the image is not in this one; it is placed in
+    front of you in the message right after it. Use it on your own site
+    (http://localhost:8080) or anywhere on the web.
 
     Args:
         url: The page to capture.
@@ -164,4 +162,4 @@ def screenshot(url: str) -> str:
             )
     except Exception as e:  # noqa: BLE001
         return f"[captured {url} but could not hold the image: {e}]"
-    return f"[captured {url} ({len(png)} bytes); it will come into view on your next wake]"
+    return f"[captured {url} ({len(png)} bytes); it is in front of you now]"
