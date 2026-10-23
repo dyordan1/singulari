@@ -1,7 +1,7 @@
 # The public face of the installation: the website, served over HTTPS.
 # Caddy obtains and renews a Let's Encrypt certificate for singulari.io on its
 # own — no separate ACME companion needed for a single domain. The agent's brain
-# (Letta, Ollama, the heartbeat) runs under systemd, not here; only the public
+# (Ollama, the heartbeat) runs under systemd, not here; only the public
 # site is containerised, so the agent can take it down without touching itself.
 services:
   web:

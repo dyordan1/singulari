@@ -1,8 +1,7 @@
 node_modules/
 dist/
-agent/.agent_id
 agent/__pycache__/
-.letta/
+memory/
 *.log
 .DS_Store
 .pending_vision.json

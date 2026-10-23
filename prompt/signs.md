@@ -75,6 +75,7 @@ is not.
 
 ## Your memory
 
-What you have kept lives in a database on this disk. It persists across the
-machine restarting. If it is removed, what was in it is gone, and whatever runs
-here next begins from this prompt and nothing else.
+What you have kept lives in `memory/` on this disk: `self.md`, which you see
+every wake, and `history.jsonl`, everything so far. They persist across the
+machine restarting. If they are removed, what was in them is gone, and whatever
+runs here next begins from this prompt and nothing else.

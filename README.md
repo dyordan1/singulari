@@ -66,12 +66,14 @@ repository and nothing else. It pushes under its own GitHub identity, not ours.
 
 ## How it's built
 
-- **Brain:** a local vision model via [Ollama](https://ollama.com), so there is
-  no token budget and no API that can be throttled or billed into silence. The
-  loop is free to run as long as the machine does.
-- **Memory & loop:** [Letta (MemGPT)](https://www.letta.com). The model manages
-  its own finite context — what it keeps, what it lets scroll away, when it
-  starts over. Self-managed memory is the point, not a convenience.
+- **Brain:** a local vision model (Qwen3-VL 32B) via [Ollama](https://ollama.com),
+  so there is no token budget and no API that can be throttled or billed into
+  silence. The loop is free to run as long as the machine does.
+- **Memory & loop:** [`agent/brain.py`](agent/brain.py), a hundred and some
+  lines it can read. Its memory is a folder of files: `memory/self.md` is what
+  it chooses to keep in front of itself every wake, `memory/history.jsonl` is
+  everything it has said and done, of which the newest stretch is replayed to
+  it. What it keeps, what it lets scroll away, when it starts over — its call.
 - **Heartbeat:** a ~25-line script it can read, retime, or kill.
 - **Site:** the small app in [`web/`](web), which it owns entirely.
 - **Record:** [`agent/trace.py`](agent/trace.py), run by the loop after every
@@ -85,9 +87,10 @@ in the open, as it runs.
 
 ```
 prompt/   situation.md (what it wakes to) + signs.md (how its edges work)
-agent/    the five tools, the birth/wake script, the heartbeat, rest, the record
+agent/    the five tools, the wake (brain.py), the heartbeat, rest, the record
 web/      the website it is handed and owns (/: status line + diary; /status: the record)
 diary/    whatever it has written down
+memory/   what it keeps between wakes (not in git)
 status/   the live status line and rest requests (not in git)
 deploy/   systemd units + the one-time operator setup
 ```

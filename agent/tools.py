@@ -1,7 +1,7 @@
-"""The agent's four tools.
+"""The agent's five tools.
 
-Each is a self-contained Letta tool: the body carries its own imports because
-Letta serializes the source and runs it in isolation. This is the entire
+Each is a plain function; agent/brain.py derives its tool schema from the
+signature and docstring and runs it in-process, as root. This is the entire
 built-in surface the agent is handed. Everything else it builds from these.
 """
 

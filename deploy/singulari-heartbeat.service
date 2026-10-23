@@ -1,14 +1,13 @@
 [Unit]
 Description=singulari — the heartbeat (wakes the agent on a timer)
-After=letta.service
-Wants=letta.service
+After=ollama.service
+Wants=ollama.service
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/singulari
 Environment=SINGULARI_HOME=/opt/singulari
-Environment=LETTA_BASE_URL=http://localhost:8283
 Environment=SINGULARI_PYTHON=/opt/singulari/.venv/bin/python3
 Environment=SINGULARI_HEARTBEAT_SECONDS=120
 ExecStart=/opt/singulari/agent/heartbeat.sh

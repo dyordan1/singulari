@@ -17,14 +17,12 @@ systemctl enable --now docker
 
 log "2/3 ollama + the model"
 command -v ollama >/dev/null || retry sh -c 'curl -fsSL https://ollama.com/install.sh | sh'
-retry ollama pull qwen2.5vl:32b
-retry ollama pull nomic-embed-text
+retry ollama pull qwen3-vl:32b
 
-log "3/3 the repo, letta, the agent's eyes"
+log "3/3 the repo and the agent's eyes"
 [ -d /opt/singulari/.git ] || retry git clone https://github.com/dyordan1/singulari.git /opt/singulari
 cd /opt/singulari
 [ -x .venv/bin/python3 ] || python3 -m venv .venv
-retry .venv/bin/pip install letta letta-client
 retry .venv/bin/pip install -r agent/requirements.txt
 retry .venv/bin/playwright install --with-deps chromium
 log "done"

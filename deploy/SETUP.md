@@ -17,7 +17,7 @@ apt-get update && apt-get install -y python3-venv git curl docker.io docker-comp
 systemctl enable --now docker
 ```
 
-(The brain runs under systemd and Python; only the public website runs in
+(The loop runs under systemd and Python; only the public website runs in
 Docker, which is why Docker is here but Node is not — the web container brings
 its own.)
 
@@ -25,17 +25,15 @@ its own.)
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh      # installs + enables ollama.service
-ollama pull qwen2.5vl:32b                          # the brain (~20GB on disk)
-ollama pull nomic-embed-text                         # embeddings for long-term memory
+ollama pull qwen3-vl:32b                            # the brain (~21GB on disk)
 ```
 
-## 3. The repo + Letta + the agent's eyes
+## 3. The repo + the agent's eyes
 
 ```bash
 git clone https://github.com/dyordan1/singulari.git /opt/singulari
 cd /opt/singulari
 python3 -m venv .venv
-.venv/bin/pip install letta letta-client            # server + client
 .venv/bin/pip install -r agent/requirements.txt
 .venv/bin/playwright install --with-deps chromium    # the screenshot tool's browser
 ```
@@ -129,10 +127,8 @@ works once the name resolves to this box. Make sure 80 and 443 are open.
 
 ```bash
 # the brain, under systemd
-cp deploy/letta.service deploy/singulari-heartbeat.service /etc/systemd/system/
+cp deploy/singulari-heartbeat.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now letta.service
-# wait a few seconds for the server, then the heartbeat:
 systemctl enable --now singulari-heartbeat.service
 
 # the public website + HTTPS, under Docker

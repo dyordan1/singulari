@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercises agent/trace.py end to end without Letta or the box: a throwaway copy
+# Exercises agent/trace.py end to end without a model or the box: a throwaway copy
 # of this tree as SINGULARI_HOME (with an empty status/), a bare "origin", the
 # orphan trace worktree, then beats: plain, with a prompt edit, rested, poke
 # failed, and a loop exit. Asserts the commits and the diff landed. Run from anywhere.

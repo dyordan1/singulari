@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the agent's tools directly, without Letta or a model.
+"""Exercise the agent's tools directly, without a model.
 
 Run this on any machine to confirm the five tools actually work — after editing
 them, after a fresh box, or just to see them move. It proves the tools, not the
