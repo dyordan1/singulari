@@ -39,6 +39,7 @@ OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "qwen3-vl:32b"
 NUM_CTX = 65536
 HISTORY_CHARS = 60_000
+REPLAY_RESULT_CHARS = 1500
 CONTEXT_CHARS = 150_000
 MAX_STEPS = 40
 
@@ -126,8 +127,9 @@ def remember(msg):
 
 
 def recent_history():
-    """The newest messages that fit the window, cut at a wake boundary so a
-    tool result never appears without its call."""
+    """The newest messages that fit the budget, with old tool results shortened
+    (they were seen in full when they happened) and the cut placed on a user or
+    assistant message so no tool result appears without its call."""
     if not os.path.exists(HISTORY):
         return []
     with open(HISTORY, "rb") as f:
@@ -139,14 +141,16 @@ def recent_history():
     if size > 4 * HISTORY_CHARS:
         lines = lines[1:]
     msgs = [json.loads(line) for line in lines if line.strip()]
+    for m in msgs:
+        m.pop("t", None)
+        if m["role"] == "tool" and len(m["content"]) > REPLAY_RESULT_CHARS:
+            m["content"] = m["content"][:REPLAY_RESULT_CHARS] + " [...shortened in replay...]"
     total, i = 0, len(msgs)
     while i > 0 and total <= HISTORY_CHARS:
         i -= 1
         total += len(json.dumps(msgs[i]))
-    while i < len(msgs) and msgs[i]["role"] != "user":
+    while i < len(msgs) and msgs[i]["role"] == "tool":
         i += 1
-    for m in msgs:
-        m.pop("t", None)
     return msgs[i:]
 
 

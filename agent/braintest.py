@@ -29,8 +29,12 @@ SCRIPT = [
         {"message": {}, "done": True, "prompt_eval_count": 150, "eval_count": 10},
     ],
     [
-        {"message": {"content": "There is a machine. I ran a command and saw a page."}},
+        {"message": {"tool_calls": [{"function": {"name": "shell", "arguments": {"command": "head -c 30000 /dev/zero | tr '\\0' x"}}}] * 4}},
         {"message": {}, "done": True, "prompt_eval_count": 180, "eval_count": 10},
+    ],
+    [
+        {"message": {"content": "There is a machine. I ran a command and saw a page."}},
+        {"message": {}, "done": True, "prompt_eval_count": 200, "eval_count": 10},
     ],
     [
         {"message": {"content": "Still here."}},
@@ -79,10 +83,10 @@ def main():
     record = json.load(open(os.path.join(home, "agent", ".last_wake.json")))
     said = [m for m in record["messages"] if m["type"] != "step_end"]
     types = [m["type"] for m in said]
-    check("wake record order", types == ["reasoning_message", "tool_call_message", "tool_return_message", "tool_call_message", "tool_return_message", "assistant_message"], str(types))
-    check("every step recorded", [m["calls"] for m in record["messages"] if m["type"] == "step_end"] == [1, 1, 0])
+    check("wake record order", types == ["reasoning_message", "tool_call_message", "tool_return_message", "tool_call_message", "tool_return_message"] + ["tool_call_message", "tool_return_message"] * 4 + ["assistant_message"], str(types))
+    check("every step recorded", [m["calls"] for m in record["messages"] if m["type"] == "step_end"] == [1, 1, 4, 0])
     check("tool really ran", "braintest-hi" in said[2]["text"])
-    check("usage summed", record["usage_statistics"] == {"prompt_tokens": 430, "completion_tokens": 40, "total_tokens": 470, "step_count": 3})
+    check("usage summed", record["usage_statistics"] == {"prompt_tokens": 630, "completion_tokens": 50, "total_tokens": 680, "step_count": 4})
     check("stop reason", record["stop_reason"] == "end_turn")
 
     now = json.load(open(os.path.join(home, "status", "now.json")))
@@ -99,15 +103,18 @@ def main():
     check("wake message carries the time", " UTC)" in REQUESTS[0]["messages"][-1]["content"])
 
     history = [json.loads(line) for line in open(os.path.join(home, "memory", "history.jsonl"))]
-    check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"])
+    check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant"])
     check("image not kept in history", "images" not in history[5])
+    check("big tool results kept in full in history", all(len(m["content"]) > 19000 for m in history[7:11]))
 
     r = wake()
     check("second wake exits 0", r.returncode == 0, r.stderr[-400:])
     check("not born twice", "born:" not in r.stdout)
-    replay = [m["role"] for m in REQUESTS[3]["messages"]]
-    check("second wake replays the first", replay == ["system", "user", "assistant", "tool", "assistant", "tool", "user", "assistant", "user"], str(replay))
-    check("replayed tool call intact", REQUESTS[3]["messages"][2]["tool_calls"][0]["function"]["name"] == "shell")
+    replayed = REQUESTS[4]["messages"]
+    replay = [m["role"] for m in replayed]
+    check("second wake replays the whole first", replay == ["system", "user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant", "user"], str(replay))
+    check("replayed tool call intact", replayed[2]["tool_calls"][0]["function"]["name"] == "shell")
+    check("big results shortened in replay", all(len(m["content"]) < 1600 and m["content"].endswith("[...shortened in replay...]") for m in replayed[8:12]))
     print("brain OK")
 
 
