@@ -28,6 +28,16 @@ curl -fsSL https://ollama.com/install.sh | sh      # installs + enables ollama.s
 ollama pull qwen3-vl:32b                            # the brain (~21GB on disk)
 ```
 
+Then, once the repo is cloned (step 3), build the model it actually talks to:
+the same weights behind a prompt template of our own, because Ollama's built-in
+one tells the model its tools exist "to assist with the user query"
+(`deploy/Modelfile` explains):
+
+```bash
+blob="$(ollama show qwen3-vl:32b --modelfile | awk '/^FROM/{print $2}')"
+sed "s|^FROM .*|FROM $blob|" /opt/singulari/deploy/Modelfile | ollama create singulari -f -
+```
+
 ## 3. The repo + the agent's eyes
 
 ```bash

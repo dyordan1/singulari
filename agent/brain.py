@@ -38,7 +38,7 @@ CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
 LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
-MODEL = "qwen3-vl:32b"
+MODEL = "singulari"
 NUM_CTX = 65536
 HISTORY_CHARS = 60_000
 REPLAY_RESULT_CHARS = 1500
