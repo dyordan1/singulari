@@ -77,27 +77,37 @@ def write_file(path: str, content: str) -> str:
 
 
 def web_fetch(url: str) -> str:
-    """Fetch a URL over HTTP(S) and return the response body as text.
+    """Open a URL in a browser and return the page's text as a reader sees it,
+    scripts having run. Works for pages built in the browser, your own site
+    included, and for plain text or JSON.
 
     Args:
-        url: The URL to GET.
+        url: The URL to open.
 
     Returns:
-        The response body (HTML stripped to text where possible), or an error
-        line.
+        The rendered page text, or an error line.
     """
-    import re
-    import urllib.request
+    import subprocess
+    import sys
 
+    script = (
+        "import sys\n"
+        "from playwright.sync_api import sync_playwright\n"
+        "with sync_playwright() as p:\n"
+        "    b = p.chromium.launch(headless=True)\n"
+        "    pg = b.new_page()\n"
+        "    pg.goto(sys.argv[1], wait_until='load', timeout=30000)\n"
+        "    pg.wait_for_timeout(1500)\n"
+        "    print(pg.evaluate('document.body ? document.body.innerText : \"\"'))\n"
+        "    b.close()\n"
+    )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "singulari/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
+        proc = subprocess.run([sys.executable, "-c", script, url], capture_output=True, timeout=90)
     except Exception as e:  # noqa: BLE001
         return f"[error fetching {url}: {e}]"
-    text = re.sub(r"(?is)<script.*?</script>|<style.*?</style>", " ", raw)
-    text = re.sub(r"(?s)<[^>]+>", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
+    if proc.returncode != 0:
+        return f"[error fetching {url}: {proc.stderr.decode('utf-8', errors='replace')[-800:]}]"
+    text = proc.stdout.decode("utf-8", errors="replace").strip()
     if len(text) > 20000:
         text = text[:20000] + " [...truncated...]"
     return text

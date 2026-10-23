@@ -188,7 +188,7 @@ def context_chars(messages):
 def step(messages, specs, wake):
     """One model turn: stream it, narrate it, record it. Returns the tool calls."""
     thinking, content, calls = "", "", []
-    cut = False
+    done_reason = None
     for chunk in chat(messages, specs):
         m = chunk.get("message") or {}
         if m.get("thinking"):
@@ -201,7 +201,7 @@ def step(messages, specs, wake):
             content += m["content"]
         calls.extend(m.get("tool_calls") or [])
         if chunk.get("done"):
-            cut = chunk.get("done_reason") == "length"
+            done_reason = chunk.get("done_reason")
             usage = wake["usage_statistics"]
             usage["prompt_tokens"] += chunk.get("prompt_eval_count") or 0
             usage["completion_tokens"] += chunk.get("eval_count") or 0
@@ -209,6 +209,7 @@ def step(messages, specs, wake):
         wake["messages"].append({"type": "reasoning_message", "text": thinking})
     if content:
         wake["messages"].append({"type": "assistant_message", "text": content})
+    wake["messages"].append({"type": "step_end", "done_reason": done_reason, "calls": len(calls)})
     reply = {"role": "assistant", "content": content}
     if thinking:
         reply["thinking"] = thinking
@@ -217,7 +218,7 @@ def step(messages, specs, wake):
     messages.append(reply)
     remember(reply)
     print(f"[assistant] {content or thinking}"[:300])
-    return None if cut else calls
+    return None if done_reason == "length" else calls
 
 
 def run_tool(call, tools, messages, wake):

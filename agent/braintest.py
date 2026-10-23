@@ -77,9 +77,11 @@ def main():
     check("self.md created", os.path.exists(os.path.join(home, "memory", "self.md")))
 
     record = json.load(open(os.path.join(home, "agent", ".last_wake.json")))
-    types = [m["type"] for m in record["messages"]]
+    said = [m for m in record["messages"] if m["type"] != "step_end"]
+    types = [m["type"] for m in said]
     check("wake record order", types == ["reasoning_message", "tool_call_message", "tool_return_message", "tool_call_message", "tool_return_message", "assistant_message"], str(types))
-    check("tool really ran", "braintest-hi" in record["messages"][2]["text"])
+    check("every step recorded", [m["calls"] for m in record["messages"] if m["type"] == "step_end"] == [1, 1, 0])
+    check("tool really ran", "braintest-hi" in said[2]["text"])
     check("usage summed", record["usage_statistics"] == {"prompt_tokens": 430, "completion_tokens": 40, "total_tokens": 470, "step_count": 3})
     check("stop reason", record["stop_reason"] == "end_turn")
 

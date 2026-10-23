@@ -48,16 +48,12 @@ def main():
         check("read_file returns contents", t.read_file(p) == "hello\nworld")
     check("read_file on missing path returns error line", t.read_file("/no/such/file").startswith("[error"))
 
-    # web_fetch (needs network)
-    try:
-        import urllib.request  # noqa: F401
-        r = t.web_fetch("https://example.com")
-        if r.startswith("[error"):
-            check("web_fetch GETs a page", None, "no network")
-        else:
-            check("web_fetch GETs + strips to text", "example" in r.lower())
-    except Exception as e:  # noqa: BLE001
-        check("web_fetch GETs a page", None, str(e))
+    # web_fetch (needs playwright + chromium + network)
+    r = t.web_fetch("https://example.com")
+    if r.startswith("[error"):
+        check("web_fetch renders a page", None, r[:120])
+    else:
+        check("web_fetch renders a page to text", "example" in r.lower() and "<" not in r)
 
     # screenshot (needs playwright + chromium + a URL)
     url = sys.argv[1] if len(sys.argv) > 1 else None
