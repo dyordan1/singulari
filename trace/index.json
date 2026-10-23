@@ -1,23 +1,23 @@
 {
  "born": "2026-10-23T04:18:08Z",
- "wakes": 18,
- "last": "2026-10-23T05:41:25Z",
- "dur_total_s": 3236.2000000000003,
- "mean_dur_s": 179.8,
+ "wakes": 19,
+ "last": "2026-10-23T05:46:59Z",
+ "dur_total_s": 3449.0000000000005,
+ "mean_dur_s": 181.5,
  "interval": {
   "declared": 120,
-  "mean_gap_s": 293.9
+  "mean_gap_s": 296.2
  },
- "gap_total_s": 4997.0,
- "gaps": 17,
+ "gap_total_s": 5331.0,
+ "gaps": 18,
  "tools": {
-  "read_file": 4,
-  "write_file": 6,
+  "read_file": 5,
+  "write_file": 7,
   "screenshot": 6,
   "web_fetch": 29,
-  "shell": 35
+  "shell": 39
  },
- "tokens": 1190410,
+ "tokens": 1245657,
  "rests": 0,
  "diary_entries": 0,
  "files_changed_since_birth": [
@@ -29,7 +29,9 @@
   "agent/trace.py",
   "agent/tracetest.sh",
   "web/src/Home.tsx",
-  "agent/selftest.py"
+  "agent/selftest.py",
+  "agent/heartbeat.sh",
+  "agent/rest.py"
  ],
  "days": [
   "2026-10-23"
