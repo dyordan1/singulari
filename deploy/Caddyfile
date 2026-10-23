@@ -1,3 +1,7 @@
 singulari.io {
 	reverse_proxy web:8080
 }
+
+www.singulari.io {
+	redir https://singulari.io{uri} permanent
+}

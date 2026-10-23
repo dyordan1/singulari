@@ -7,10 +7,13 @@ Assumes: a fresh Ubuntu/Debian box with the 48GB A6000; `singulari.io` already
 bought, with its DNS in an account the box cannot reach; and a GitHub account for
 the agent (its own identity, see step 4) with write access to this repository.
 
+Steps 1–3 are scripted in [`bringup.sh`](bringup.sh): copy it to the box and
+run it detached as root, then poll its log (the model pull alone is ~20GB).
+
 ## 1. Base packages
 
 ```bash
-apt-get update && apt-get install -y python3-venv git curl docker.io docker-compose-plugin
+apt-get update && apt-get install -y python3-venv git curl docker.io docker-compose-v2
 systemctl enable --now docker
 ```
 
@@ -22,7 +25,7 @@ its own.)
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh      # installs + enables ollama.service
-ollama pull qwen2.5-vl:32b                          # the brain (~20GB on disk)
+ollama pull qwen2.5vl:32b                          # the brain (~20GB on disk)
 ollama pull nomic-embed-text                         # embeddings for long-term memory
 ```
 
@@ -70,8 +73,12 @@ Then make its commits its own:
 
 ```bash
 git -C /opt/singulari config user.name  singulari
-git -C /opt/singulari config user.email '<agent-account-email>'
+git -C /opt/singulari config user.email '<id>+<account>@users.noreply.github.com'
 ```
+
+GitHub links a commit to a profile only through an email verified on that
+account; the account's no-reply address (Settings → Emails) needs no mailbox and
+always links.
 
 The private half lives only on the box. It is the agent's one reach outside;
 `prompt/signs.md` ("Your key to the outside") describes it to the agent — make

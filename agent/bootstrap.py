@@ -30,7 +30,7 @@ LAST_WAKE = os.path.join(SINGULARI_HOME, "agent", ".last_wake.json")
 
 AGENT_NAME = "singulari"
 LETTA_BASE_URL = os.environ.get("LETTA_BASE_URL", "http://localhost:8283")
-MODEL = os.environ.get("SINGULARI_MODEL", "ollama/qwen2.5-vl:32b")
+MODEL = os.environ.get("SINGULARI_MODEL", "ollama/qwen2.5vl:32b")
 EMBEDDING = os.environ.get("SINGULARI_EMBEDDING", "ollama/nomic-embed-text")
 CONTEXT_WINDOW = int(os.environ.get("SINGULARI_CONTEXT_WINDOW", "32768"))
 
