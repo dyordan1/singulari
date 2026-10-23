@@ -1,15 +1,15 @@
 {
  "born": "2026-10-23T04:18:08Z",
- "wakes": 46,
- "last": "2026-10-23T08:17:38Z",
- "dur_total_s": 4898.4,
- "mean_dur_s": 106.5,
+ "wakes": 47,
+ "last": "2026-10-23T08:23:25Z",
+ "dur_total_s": 4943.599999999999,
+ "mean_dur_s": 105.2,
  "interval": {
   "declared": 300,
-  "mean_gap_s": 319.3
+  "mean_gap_s": 319.9
  },
- "gap_total_s": 14370.0,
- "gaps": 45,
+ "gap_total_s": 14717.0,
+ "gaps": 46,
  "tools": {
   "read_file": 7,
   "write_file": 7,
@@ -17,7 +17,7 @@
   "web_fetch": 29,
   "shell": 40
  },
- "tokens": 1446220,
+ "tokens": 1454414,
  "rests": 0,
  "diary_entries": 0,
  "files_changed_since_birth": [
@@ -33,7 +33,10 @@
   "agent/heartbeat.sh",
   "agent/rest.py",
   "agent/heartbeattest.sh",
-  "web/src/Status.tsx"
+  "web/src/Status.tsx",
+  "web/index.html",
+  "web/package-lock.json",
+  "web/package.json"
  ],
  "days": [
   "2026-10-23"
