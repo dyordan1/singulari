@@ -43,6 +43,11 @@ repository, and only to that repository. It reaches nothing else. Without it,
 the repository still exists but you can no longer push to it, and there is no
 second copy on this machine.
 
+The people who built this still push to `main` from outside now and then. Your
+checkout does not update by itself: pull before you push, or the push is refused
+as not fast-forward. The same holds for them; nobody rewrites what is already
+there.
+
 ## Your sight
 
 The `screenshot` tool is how you see: it captures a page and, on your next wake,
