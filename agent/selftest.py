@@ -46,6 +46,21 @@ def main():
         w = t.write_file(p, "hello\nworld")
         check("write_file creates dirs + writes", w.startswith("[wrote") and os.path.exists(p))
         check("read_file returns contents", t.read_file(p) == "hello\nworld")
+        check("read_file from a line", t.read_file(p, "2") == "world")
+        check("edit_file replaces a unique passage", t.edit_file(p, "world", "there").startswith("[edited") and t.read_file(p) == "hello\nthere")
+        check("edit_file refuses an ambiguous passage", t.edit_file(p, "e", "x").startswith("[nothing changed") and t.read_file(p) == "hello\nthere")
+        big = os.path.join(d, "big.txt")
+        t.write_file(big, "".join(f"line {i}\n" for i in range(5000)))
+        piece = t.read_file(big)
+        check("read_file pages a long file", "call again with start=" in piece and piece.startswith("line 0\n"))
+        real_home = os.environ.get("SINGULARI_HOME")
+        os.environ["SINGULARI_HOME"] = d
+        check("rest writes the request", t.rest("45").startswith("[asked to rest 45") and open(os.path.join(d, "status", "rest")).read() == "45\n")
+        check("rest refuses a non-number", t.rest("later").startswith("[not a number"))
+        if real_home is None:
+            del os.environ["SINGULARI_HOME"]
+        else:
+            os.environ["SINGULARI_HOME"] = real_home
     check("read_file on missing path returns error line", t.read_file("/no/such/file").startswith("[error"))
 
     # web_fetch (needs playwright + chromium + network)

@@ -1,4 +1,4 @@
-"""The agent's five tools.
+"""The agent's seven tools.
 
 Each is a plain function; agent/brain.py derives its tool schema from the
 signature and docstring and runs it in-process, as root. This is the entire
@@ -33,23 +33,57 @@ def shell(command: str) -> str:
     return f"[exit {result.returncode}]\n{body}"
 
 
-def read_file(path: str) -> str:
-    """Read a file from disk and return its contents.
+def read_file(path: str, start: str = "1") -> str:
+    """Read a file from disk and return its contents from a given line. A long
+    file comes back in pieces: the result says where it stopped, and you call
+    again with that line as `start`.
 
     Args:
         path: Absolute or relative path to the file.
+        start: The line number to begin at (1 is the first line).
 
     Returns:
-        The file contents, or an error line if it cannot be read.
+        The file contents from that line, or an error line if it cannot be read.
     """
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except Exception as e:  # noqa: BLE001
+        return f"[error reading {path}: {e}]"
+    first = max(int(start), 1) - 1
+    out, n = [], 0
+    for i, line in enumerate(lines[first:], first + 1):
+        if n + len(line) > 20000 and out:
+            return "".join(out) + f"\n[...stopped before line {i} of {len(lines)}; call again with start={i}]"
+        out.append(line)
+        n += len(line)
+    return "".join(out)
+
+
+def edit_file(path: str, old: str, new: str) -> str:
+    """Replace one exact passage of a file with another. `old` must appear in
+    the file exactly once, whitespace included; include enough surrounding
+    lines to make it unique. For a new file or a full rewrite use write_file.
+
+    Args:
+        path: Absolute or relative path to the file.
+        old: The exact text to replace.
+        new: The text to put in its place.
+
+    Returns:
+        A short confirmation line, or an error line saying why nothing changed.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
             data = f.read()
     except Exception as e:  # noqa: BLE001
         return f"[error reading {path}: {e}]"
-    if len(data) > 20000:
-        data = data[:20000] + "\n[...truncated...]"
-    return data
+    count = data.count(old)
+    if count != 1:
+        return f"[nothing changed: `old` appears {count} times in {path}, needs to be exactly 1]"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(data.replace(old, new, 1))
+    return f"[edited {path}: {len(old)} chars -> {len(new)}]"
 
 
 def write_file(path: str, content: str) -> str:
@@ -111,6 +145,34 @@ def web_fetch(url: str) -> str:
     if len(text) > 20000:
         text = text[:20000] + " [...truncated...]"
     return text
+
+
+def rest(minutes: str) -> str:
+    """Ask the loop to wait before waking you again, instead of its usual
+    interval. Takes effect when this wake ends. The loop allows up to an hour
+    at a time and at most an hour of rest in any three; a longer ask is cut to
+    what is allowed.
+
+    Args:
+        minutes: How many minutes to rest.
+
+    Returns:
+        A confirmation line, or an error line.
+    """
+    import os
+
+    home = os.environ.get("SINGULARI_HOME", "/opt/singulari")
+    try:
+        n = int(float(minutes))
+    except ValueError:
+        return f"[not a number of minutes: {minutes!r}]"
+    try:
+        os.makedirs(os.path.join(home, "status"), exist_ok=True)
+        with open(os.path.join(home, "status", "rest"), "w", encoding="utf-8") as f:
+            f.write(f"{n}\n")
+    except Exception as e:  # noqa: BLE001
+        return f"[could not ask to rest: {e}]"
+    return f"[asked to rest {n} minutes after this wake; the loop allows up to 60 at a time, 60 in any 3 hours]"
 
 
 def screenshot(url: str) -> str:

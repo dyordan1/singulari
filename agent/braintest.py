@@ -93,7 +93,8 @@ def main():
     check("status line ends on the answer", now["state"] == "saying something", now["state"])
 
     first = REQUESTS[0]
-    check("tools offered", [t["function"]["name"] for t in first["tools"]] == ["shell", "read_file", "write_file", "web_fetch", "screenshot"])
+    check("tools offered", [t["function"]["name"] for t in first["tools"]] == ["shell", "read_file", "edit_file", "write_file", "web_fetch", "screenshot", "rest"])
+    check("optional start is not required", first["tools"][1]["function"]["parameters"]["required"] == ["path"])
     check("shell schema from docstring", first["tools"][0]["function"]["parameters"]["properties"]["command"]["description"].startswith("The shell command"))
     check("self.md in system prompt", "I have just woken for the first time." in first["messages"][0]["content"])
     check("second step carries the tool result", REQUESTS[1]["messages"][-1]["role"] == "tool")

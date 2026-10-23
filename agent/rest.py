@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """How long the loop waits before the next wake. Prints seconds.
 
-Default: the interval given as argv[1]. If the agent left a request in
-`status/rest` (a number of minutes, or `until <ISO-8601 time>`), the file is
-consumed and the request honoured within the limit written here: at most an hour
-at a time, and at most an hour of rest in any three. The rationale baked into
+Default: the interval given as argv[1]. If the agent's `rest` tool left a
+number of minutes in `status/rest`, the file is consumed and the request
+honoured within the limit written here: at most an hour at a time, and at most
+an hour of rest in any three. The rationale baked into
 that number: the agent thinks roughly ten times faster than a person, and people
 rarely sleep more than ten hours in twenty-four. Nothing else enforces it.
 
@@ -30,12 +30,7 @@ def requested_seconds() -> float:
     with open(REST_FILE, encoding="utf-8") as f:
         text = f.read().strip()
     os.remove(REST_FILE)
-    if text.lower().startswith("until"):
-        when = datetime.fromisoformat(text[5:].strip())
-        if when.tzinfo is None:
-            when = when.astimezone()
-        return when.timestamp() - time.time()
-    return float(text.rstrip("m").strip()) * 60
+    return float(text) * 60
 
 
 def used_in_window(now: float) -> float:

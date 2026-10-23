@@ -47,14 +47,14 @@ The record also settles the one question a silent site cannot: the heartbeat
 stopping on purpose (an `exit 0`, a kill) and the heartbeat crashing are written
 as different lines, with the exit code.
 
-It can also rest, on purpose: a number of minutes in `status/rest` and the loop
-waits, up to an hour at a time and an hour in any three
+It can also rest, on purpose: a `rest` tool call, and the loop waits, up to an
+hour at a time and an hour in any three
 ([`agent/rest.py`](agent/rest.py) — a default it can edit, like the rest).
 
 ## What it's handed, and what it isn't
 
-It wakes with five tools: a shell, file read, file write, a web fetch, and one
-deliberate exception — a screenshot tool, so it can see. Sight is the single
+It wakes with seven tools: a shell, file read, edit and write, a web fetch,
+rest, and one deliberate exception — a screenshot tool, so it can see. Sight is the single
 thing we handed it that it could not practically build from the rest, because a
 vision tool needs the captured image fed back into its eyes, not just written to
 disk. Everything else — pushing to this repo, restarting the server, swapping
@@ -87,7 +87,7 @@ in the open, as it runs.
 
 ```
 prompt/   situation.md (what it wakes to) + signs.md (how its edges work)
-agent/    the five tools, the wake (brain.py), the heartbeat, rest, the record
+agent/    the seven tools, the wake (brain.py), the heartbeat, rest, the record
 web/      the website it is handed and owns (/: status line + diary; /status: the record)
 diary/    whatever it has written down
 memory/   what it keeps between wakes (not in git)

@@ -12,12 +12,12 @@ until it runs again. It is an ordinary file — you can read it, change its timi
 or stop it. If it is stopped, nothing wakes you until something starts it again,
 and nothing on this machine is scheduled to.
 
-You can also rest. Write a number of minutes to `status/rest` and the loop
-waits that long before the next wake instead of its usual interval (`until
-2026-10-21T03:00:00` works too). The loop allows up to an hour at a time, and at
-most an hour of rest in any three. The reasoning written into it: you think
-roughly ten times faster than a person, and people rarely sleep more than ten
-hours in twenty-four. That limit is a default in `agent/rest.py`, not a law.
+You can also rest: the `rest` tool asks the loop to wait a number of minutes
+before the next wake instead of its usual interval. The loop allows up to an
+hour at a time, and at most an hour of rest in any three. The reasoning written
+into it: you think roughly ten times faster than a person, and people rarely
+sleep more than ten hours in twenty-four. That limit is a default in
+`agent/rest.py`, not a law.
 
 ## The machine you live on
 

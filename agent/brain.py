@@ -48,8 +48,8 @@ MECHANICS = f"""
 ---
 How this works, mechanically:
 
-- Your tools are listed for you with their schemas: a shell, file read and
-  write, a web fetch, a screenshot. Call them as tools. Their results come back
+- Your tools are listed for you with their schemas: a shell, file read, edit
+  and write, a web fetch, a screenshot, and rest. Call them as tools. Their results come back
   to you in the same wake and you can keep calling until you are done. A wake
   ends when you answer without calling a tool, after {MAX_STEPS} steps, or when
   the window is full.
@@ -75,8 +75,10 @@ TOOL_STATES = {
     "shell": "running a command",
     "read_file": "reading a file",
     "write_file": "writing a file",
+    "edit_file": "editing a file",
     "web_fetch": "reading the web",
     "screenshot": "looking at a page",
+    "rest": "deciding to rest",
 }
 
 
@@ -84,7 +86,7 @@ def load_tools():
     spec = importlib.util.spec_from_file_location("singulari_tools", os.path.join(HERE, "tools.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return {fn.__name__: fn for fn in (mod.shell, mod.read_file, mod.write_file, mod.web_fetch, mod.screenshot)}
+    return {fn.__name__: fn for fn in (mod.shell, mod.read_file, mod.edit_file, mod.write_file, mod.web_fetch, mod.screenshot, mod.rest)}
 
 
 def tool_specs(tools):
@@ -94,7 +96,9 @@ def tool_specs(tools):
         doc = inspect.getdoc(fn) or ""
         description, _, rest = doc.partition("\nArgs:\n")
         args = dict(re.findall(r"^\s+(\w+): (.+)$", rest.partition("\nReturns:")[0], re.M))
-        params = list(inspect.signature(fn).parameters)
+        sig = inspect.signature(fn).parameters
+        params = list(sig)
+        required = [p for p in params if sig[p].default is inspect.Parameter.empty]
         specs.append(
             {
                 "type": "function",
@@ -104,7 +108,7 @@ def tool_specs(tools):
                     "parameters": {
                         "type": "object",
                         "properties": {p: {"type": "string", "description": args.get(p, "")} for p in params},
-                        "required": params,
+                        "required": required,
                     },
                 },
             }
@@ -229,7 +233,7 @@ def run_tool(call, tools, messages, wake):
     fn = call.get("function") or {}
     name, args = fn.get("name") or "", fn.get("arguments") or {}
     wake["messages"].append({"type": "tool_call_message", "tool": name, "args": args})
-    detail = str(args.get("command") or args.get("url") or args.get("path") or "") if isinstance(args, dict) else ""
+    detail = str(args.get("command") or args.get("url") or args.get("path") or args.get("minutes") or "") if isinstance(args, dict) else ""
     write_now(TOOL_STATES.get(name, "working"), detail if name in TOOL_STATES else name)
     print(f"[tool_call] {name} {json.dumps(args)}"[:300])
     if name not in tools:
