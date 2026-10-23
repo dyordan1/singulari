@@ -35,7 +35,8 @@ one tells the model its tools exist "to assist with the user query"
 
 ```bash
 blob="$(ollama show qwen3-vl:32b --modelfile | awk '/^FROM/{print $2}')"
-sed "s|^FROM .*|FROM $blob|" /opt/singulari/deploy/Modelfile | ollama create singulari -f -
+sed "s|^FROM .*|FROM $blob|" /opt/singulari/deploy/Modelfile > /tmp/singulari.Modelfile
+ollama create singulari -f /tmp/singulari.Modelfile && rm /tmp/singulari.Modelfile
 ```
 
 ## 3. The repo + the agent's eyes
