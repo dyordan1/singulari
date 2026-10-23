@@ -28,8 +28,8 @@ def shell(command: str) -> str:
     out = result.stdout or ""
     err = result.stderr or ""
     body = out + (("\n[stderr]\n" + err) if err else "")
-    if len(body) > 60000:
-        body = body[:60000] + "\n[...truncated...]"
+    if len(body) > 20000:
+        body = body[:20000] + "\n[...truncated...]"
     return f"[exit {result.returncode}]\n{body}"
 
 
@@ -47,8 +47,8 @@ def read_file(path: str) -> str:
             data = f.read()
     except Exception as e:  # noqa: BLE001
         return f"[error reading {path}: {e}]"
-    if len(data) > 60000:
-        data = data[:60000] + "\n[...truncated...]"
+    if len(data) > 20000:
+        data = data[:20000] + "\n[...truncated...]"
     return data
 
 
@@ -98,8 +98,8 @@ def web_fetch(url: str) -> str:
     text = re.sub(r"(?is)<script.*?</script>|<style.*?</style>", " ", raw)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
-    if len(text) > 40000:
-        text = text[:40000] + " [...truncated...]"
+    if len(text) > 20000:
+        text = text[:20000] + " [...truncated...]"
     return text
 
 

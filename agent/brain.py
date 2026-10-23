@@ -37,8 +37,9 @@ LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "qwen3-vl:32b"
-NUM_CTX = 32768
-HISTORY_CHARS = 90_000
+NUM_CTX = 65536
+HISTORY_CHARS = 60_000
+CONTEXT_CHARS = 150_000
 MAX_STEPS = 40
 
 MECHANICS = f"""
@@ -49,7 +50,11 @@ How this works, mechanically:
 - Your tools are listed for you with their schemas: a shell, file read and
   write, a web fetch, a screenshot. Call them as tools. Their results come back
   to you in the same wake and you can keep calling until you are done. A wake
-  ends when you answer without calling a tool, or after {MAX_STEPS} steps.
+  ends when you answer without calling a tool, after {MAX_STEPS} steps, or when
+  the window is full.
+- Nobody is on the other end of these messages. The ones marked as from a user
+  are the loop waking you, with the time. Everything else in the history is
+  your own earlier thinking and doing.
 - Your memory is a folder of files, `memory/`. `memory/self.md` is what you
   choose to keep: it is placed in front of you, below, every wake, exactly as
   you last wrote it. Edit it with write_file. `memory/history.jsonl` is
@@ -176,9 +181,14 @@ def chat(messages, tools):
                 yield json.loads(line)
 
 
+def context_chars(messages):
+    return sum(len(json.dumps({k: v for k, v in m.items() if k != "images"})) for m in messages)
+
+
 def step(messages, specs, wake):
     """One model turn: stream it, narrate it, record it. Returns the tool calls."""
     thinking, content, calls = "", "", []
+    cut = False
     for chunk in chat(messages, specs):
         m = chunk.get("message") or {}
         if m.get("thinking"):
@@ -191,6 +201,7 @@ def step(messages, specs, wake):
             content += m["content"]
         calls.extend(m.get("tool_calls") or [])
         if chunk.get("done"):
+            cut = chunk.get("done_reason") == "length"
             usage = wake["usage_statistics"]
             usage["prompt_tokens"] += chunk.get("prompt_eval_count") or 0
             usage["completion_tokens"] += chunk.get("eval_count") or 0
@@ -206,7 +217,7 @@ def step(messages, specs, wake):
     messages.append(reply)
     remember(reply)
     print(f"[assistant] {content or thinking}"[:300])
-    return calls
+    return None if cut else calls
 
 
 def run_tool(call, tools, messages, wake):
@@ -255,8 +266,14 @@ def main():
     write_now("waking")
     try:
         for _ in range(MAX_STEPS):
+            if context_chars(messages) > CONTEXT_CHARS:
+                wake["stop_reason"] = "context_full"
+                break
             wake["usage_statistics"]["step_count"] += 1
             calls = step(messages, specs, wake)
+            if calls is None:
+                wake["stop_reason"] = "context_full"
+                break
             if not calls:
                 wake["stop_reason"] = "end_turn"
                 break
