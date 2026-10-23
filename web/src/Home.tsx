@@ -43,7 +43,14 @@ export function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const line = now?.own ?? (now?.state ? `${now.state}${now.detail ? ` · ${now.detail}` : ""}` : null);
+  const line =
+    now?.own ??
+    (now?.state ? (
+      <>
+        {now.state}
+        {now.detail && <span style={{ color: DIM }}> · {now.detail}</span>}
+      </>
+    ) : null);
   const resting = !now?.own && now?.state?.startsWith("resting");
 
   return (
@@ -55,24 +62,27 @@ export function Home() {
         It may take this page down. That is allowed.
       </p>
 
-      <p style={{ color: WHITE, margin: "2rem 0", display: "flex", alignItems: "center", gap: 12 }}>
+      <p style={{ color: WHITE, margin: "2rem 0", display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span
           aria-hidden
           style={{
             width: 8,
             height: 8,
+            marginTop: "0.6em",
             borderRadius: "50%",
             background: line ? (resting ? FAINT : WHITE) : "transparent",
             border: line ? "none" : `1px solid ${FAINT}`,
             flexShrink: 0,
           }}
         />
-        <span style={{ wordBreak: "break-word" }}>{line ?? <span style={{ color: FAINT }}>(no signal)</span>}</span>
-        {now?.at && (
-          <span style={{ color: FAINT, fontSize: "0.75rem", marginLeft: "auto", flexShrink: 0 }}>
-            {ago(Date.now() - now.at * 1000)}
-          </span>
-        )}
+        <span style={{ overflowWrap: "anywhere" }}>
+          {line ?? <span style={{ color: FAINT }}>(no signal)</span>}
+          {now?.at && (
+            <span style={{ color: FAINT, fontSize: "0.75rem", marginLeft: 12, whiteSpace: "nowrap" }}>
+              {ago(Date.now() - now.at * 1000)}
+            </span>
+          )}
+        </span>
       </p>
       <hr style={{ border: 0, borderTop: `1px solid ${RULE}`, margin: "2rem 0" }} />
 

@@ -1,8 +1,7 @@
 export const INK = "#c9c9c9";
-export const DIM = "#6a6a6a";
-export const FAINT = "#4a4a4a";
+export const DIM = "#8a8a8a";
+export const FAINT = "#5a5a5a";
 export const RULE = "#1e1e1e";
-export const BG = "#0a0a0a";
 export const WHITE = "#fff";
 export const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 

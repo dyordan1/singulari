@@ -1,6 +1,6 @@
 import { Home } from "./Home.tsx";
 import { Status } from "./Status.tsx";
-import { BG, DIM, FAINT, INK, RULE, WHITE, mono } from "./theme.ts";
+import { DIM, FAINT, INK, RULE, WHITE, mono } from "./theme.ts";
 
 export function App() {
   const status = window.location.pathname.replace(/\/+$/, "") === "/status";
@@ -12,8 +12,6 @@ export function App() {
         padding: "10vh 24px 20vh",
         fontFamily: mono,
         color: INK,
-        background: BG,
-        minHeight: "100vh",
         lineHeight: 1.6,
       }}
     >
