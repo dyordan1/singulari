@@ -140,7 +140,8 @@ def web_fetch(url: str) -> str:
     except Exception as e:  # noqa: BLE001
         return f"[error fetching {url}: {e}]"
     if proc.returncode != 0:
-        return f"[error fetching {url}: {proc.stderr.decode('utf-8', errors='replace')[-800:]}]"
+        err = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()
+        return f"[error fetching {url}: {err[-1] if err else 'unknown error'}]"
     text = proc.stdout.decode("utf-8", errors="replace").strip()
     if len(text) > 20000:
         text = text[:20000] + " [...truncated...]"
@@ -180,7 +181,7 @@ def screenshot(url: str) -> str:
 
     Tool results are text, so the image is not in this one; it is placed in
     front of you in the message right after it. Use it on your own site
-    (http://localhost:8080) or anywhere on the web.
+    (https://singulari.io) or anywhere on the web.
 
     Args:
         url: The page to capture.
@@ -215,8 +216,8 @@ def screenshot(url: str) -> str:
     except Exception as e:  # noqa: BLE001
         return f"[could not capture {url}: {e}]"
     if proc.returncode != 0:
-        err = proc.stderr.decode("utf-8", errors="replace")[-800:]
-        return f"[could not capture {url}: {err}]"
+        err = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()
+        return f"[could not capture {url}: {err[-1] if err else 'unknown error'}]"
     png = proc.stdout
     home = os.environ.get("SINGULARI_HOME", "/opt/singulari")
     pending = os.path.join(home, "agent", ".pending_vision.json")

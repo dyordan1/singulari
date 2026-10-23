@@ -32,6 +32,7 @@ HOME = os.environ.get("SINGULARI_HOME", ROOT)
 MEMORY = os.path.join(HOME, "memory")
 SELF = os.path.join(MEMORY, "self.md")
 HISTORY = os.path.join(MEMORY, "history.jsonl")
+WAKES = os.path.join(MEMORY, "wakes.json")
 PENDING_VISION = os.path.join(HOME, "agent", ".pending_vision.json")
 LABEL = os.path.join(STATUS_DIR, "now.txt")
 CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
@@ -56,8 +57,9 @@ How this works, mechanically:
   ends when you answer without calling a tool, after {MAX_STEPS} steps, or when
   the window is full.
 - Nobody is on the other end of these messages. The ones marked as from a user
-  are the loop waking you, with the time. Everything else in the history is
-  your own earlier thinking and doing.
+  are the loop waking you, with the time, or a tool result, or a page you
+  captured. Everything else in the history is your own earlier thinking and
+  doing.
 - Your memory is a folder of files, `memory/`. `memory/self.md` is what you
   choose to keep: it is placed in front of you, below, every wake, exactly as
   you last wrote it. Edit it with write_file. `memory/history.jsonl` is
@@ -259,6 +261,10 @@ def main():
         with open(SELF, "w", encoding="utf-8") as f:
             f.write("I have just woken for the first time.\n")
         print(f"born: {MODEL}, memory at {MEMORY}")
+    wakes = json.loads(read(WAKES)) if os.path.exists(WAKES) else {"born": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "count": 0}
+    wakes["count"] += 1
+    with open(WAKES, "w", encoding="utf-8") as f:
+        json.dump(wakes, f)
 
     cleared = read(CLEARED_LABEL).strip() if os.path.exists(CLEARED_LABEL) else ""
     for stale in (CLEARED_LABEL, PENDING_VISION):
@@ -270,6 +276,7 @@ def main():
     specs = tool_specs(tools)
     messages = [{"role": "system", "content": system_prompt()}, *recent_history()]
     text = time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC", time.gmtime())
+    text += f"; this is wake {wakes['count']}, the first was {wakes['born']}"
     if cleared:
         text += f'; your status label "{cleared[:200]}" was cleared when that wake ended'
     first = {"role": "user", "content": text + ")"}

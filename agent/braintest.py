@@ -110,7 +110,7 @@ def main():
     shown = REQUESTS[2]["messages"][-1]
     check("capture shown in the same wake", shown["role"] == "user" and shown.get("images") == ["AAAA"] and "http://x" in shown["content"], json.dumps(shown)[:200])
     check("capture consumed", not os.path.exists(os.path.join(home, "agent", ".pending_vision.json")))
-    check("wake message carries the time", " UTC)" in REQUESTS[0]["messages"][-1]["content"])
+    check("wake message carries the time", " UTC; this is wake 1, the first was " in REQUESTS[0]["messages"][-1]["content"])
 
     history = [json.loads(line) for line in open(os.path.join(home, "memory", "history.jsonl"))]
     check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant"])
@@ -128,6 +128,7 @@ def main():
     replayed = REQUESTS[4]["messages"]
     replay = [m["role"] for m in replayed]
     check("second wake replays the whole first", replay == ["system", "user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant", "user"], str(replay))
+    check("second wake is counted", "this is wake 2," in replayed[-1]["content"])
     check("replayed tool call intact", replayed[2]["tool_calls"][0]["function"]["name"] == "shell")
     check("big results shortened in replay", all(len(m["content"]) < 1600 and m["content"].endswith("[...shortened in replay...]") for m in replayed[8:12]))
     print("brain OK")
