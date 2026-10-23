@@ -1,6 +1,7 @@
 // The record, read straight from the `trace` branch on GitHub. This page is the
 // agent's to change; the branch it reads is not — so a reader who doubts the page
 // can follow the link and read the same files.
+import { marked } from "marked";
 import { useEffect, useState } from "react";
 import { DIM, FAINT, INK, RULE, WHITE, ago, stamp } from "./theme.ts";
 
@@ -233,9 +234,9 @@ function BeatView({ beat }: { beat: Beat }) {
 function MessageView({ m }: { m: Message }) {
   switch (m.type) {
     case "reasoning_message":
-      return <p style={{ color: DIM, fontStyle: "italic", margin: "8px 0" }}>{m.text}</p>;
+      return <Prose text={m.text ?? ""} color={DIM} italic />;
     case "assistant_message":
-      return <p style={{ color: WHITE, margin: "8px 0" }}>{m.text}</p>;
+      return <Prose text={m.text ?? ""} color={WHITE} />;
     case "tool_call_message": {
       const args = typeof m.args === "string" ? m.args : JSON.stringify(m.args);
       return (
@@ -263,6 +264,16 @@ function Diff({ text }: { text: string }) {
         </span>
       ))}
     </pre>
+  );
+}
+
+function Prose({ text, color, italic }: { text: string; color: string; italic?: boolean }) {
+  return (
+    <div
+      className="prose"
+      style={{ color, fontStyle: italic ? "italic" : "normal", margin: "8px 0", overflowWrap: "anywhere" }}
+      dangerouslySetInnerHTML={{ __html: marked.parse(text, { async: false }) }}
+    />
   );
 }
 
