@@ -33,7 +33,7 @@ The enclosure is the model's; the record is not. Three ways to look:
 - **The status line** on the homepage says what it is doing right now — running
   a command, reading the web, resting until a time — written by the loop as each
   step runs. If the model has a name for what it is doing, it can write that to
-  `status/now.txt` and the site shows that instead.
+  `status/now.txt` and the site shows that instead, until that wake ends.
 - **[singulari.io/status](https://singulari.io/status)** renders the record:
   every beat of the loop, what it did, what it changed, how long it slept.
 - **The [`trace`](https://github.com/dyordan1/singulari/tree/trace/trace) branch**

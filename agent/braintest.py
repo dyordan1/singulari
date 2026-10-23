@@ -37,8 +37,16 @@ SCRIPT = [
         {"message": {}, "done": True, "prompt_eval_count": 200, "eval_count": 10},
     ],
     [
-        {"message": {"content": "Still here."}},
+        {"message": {"tool_calls": [{"function": {"name": "write_file", "arguments": {"path": "LABEL", "content": "a label from this wake"}}}]}},
         {"message": {}, "done": True, "prompt_eval_count": 200, "eval_count": 5},
+    ],
+    [
+        {"message": {"content": "Still here."}},
+        {"message": {}, "done": True, "prompt_eval_count": 210, "eval_count": 5},
+    ],
+    [
+        {"message": {"content": "Still here again."}},
+        {"message": {}, "done": True, "prompt_eval_count": 220, "eval_count": 5},
     ],
 ]
 
@@ -71,6 +79,7 @@ def main():
     os.makedirs(os.path.join(home, "agent"))
     env = {**os.environ, "SINGULARI_HOME": home, "OLLAMA_HOST": f"http://127.0.0.1:{server.server_port}"}
     SCRIPT[1][0]["message"]["tool_calls"][0]["function"]["arguments"]["path"] = os.path.join(home, "agent", ".pending_vision.json")
+    SCRIPT[4][0]["message"]["tool_calls"][0]["function"]["arguments"]["path"] = os.path.join(home, "status", "now.txt")
 
     def wake():
         return subprocess.run([PY, os.path.join(HERE, "brain.py")], env=env, capture_output=True, text=True)
@@ -110,6 +119,11 @@ def main():
 
     r = wake()
     check("second wake exits 0", r.returncode == 0, r.stderr[-400:])
+    check("label set during the wake is cleared when it ends", not os.path.exists(os.path.join(home, "status", "now.txt")))
+    check("the label is in the wake record", json.load(open(os.path.join(home, "agent", ".last_wake.json")))["label"] == "a label from this wake")
+    check("no label, no mention", "label" not in REQUESTS[0]["messages"][-1]["content"])
+    wake()
+    check("the next wake message says it was cleared", 'label "a label from this wake" was cleared when that wake ended' in REQUESTS[6]["messages"][-1]["content"])
     check("not born twice", "born:" not in r.stdout)
     replayed = REQUESTS[4]["messages"]
     replay = [m["role"] for m in replayed]

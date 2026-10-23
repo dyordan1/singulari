@@ -45,6 +45,7 @@ interface Beat {
   sleep_s?: number;
   rest?: boolean;
   error?: string;
+  label?: string;
   messages?: Message[];
   changed?: Change[];
 }
@@ -210,6 +211,7 @@ function BeatView({ beat }: { beat: Beat }) {
         {beat.changed && ` · changed ${beat.changed.length} file${beat.changed.length === 1 ? "" : "s"}`}
         {beat.error && " · error"}
         <span style={{ color: DIM }}> {first.slice(0, 90)}</span>
+        {beat.label && <span style={{ color: WHITE }}> · “{beat.label}”</span>}
       </summary>
       <div style={{ paddingLeft: 16, borderLeft: `1px solid ${RULE}`, marginTop: 8, fontSize: "0.85rem" }}>
         {beat.messages?.map((m, i) => <MessageView key={i} m={m} />)}

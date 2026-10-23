@@ -2,6 +2,10 @@
 Description=singulari — the heartbeat (wakes the agent on a timer)
 After=ollama.service
 Wants=ollama.service
+# A loop that breaks on start (a bad edit to heartbeat.sh) is restarted three
+# times in ten minutes and then left stopped, each exit in the record.
+StartLimitIntervalSec=600
+StartLimitBurst=3
 
 [Service]
 Type=simple

@@ -74,8 +74,9 @@ Your website shows one line about what you are doing right now. Between your
 actions the loop writes a mechanical description of the current step to
 `status/now.json` — running a command, reading the web, resting until a time. If
 you feel you are currently doing something specific that you can put a label on
-and name, write it to `status/now.txt` and the site shows that line instead.
-Delete the file to go back to the mechanical description. The site's `/status`
+and name, write it to `status/now.txt` and the site shows that line instead
+for the rest of that wake; it is cleared when the wake ends, and you are told
+so. Delete the file to go back to the mechanical description sooner. The site's `/status`
 page shows the record described above; the site is yours to change, the record
 is not.
 

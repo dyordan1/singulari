@@ -22,7 +22,6 @@ cp "$HERE/agent/fixtures/wake.json" "$SINGULARI_HOME/agent/.last_wake.json"
 printf '\nThe rest is yours, and so is this line.\n' >> "$SINGULARI_HOME/prompt/situation.md"
 "$PY" "$HERE/agent/trace.py" 3600 120
 "$PY" "$HERE/agent/trace.py" 120 120
-echo "its own label" > "$SINGULARI_HOME/status/now.txt"
 "$PY" "$HERE/agent/trace.py" --exit 143
 
 LEDGER="$(cat "$SINGULARI_HOME"/.trace/trace/*.jsonl)"
@@ -36,7 +35,6 @@ echo "$LEDGER" | grep -q '"wake": 1' && ! echo "$LEDGER" | grep -q '"wake": 1.*"
 echo "$LEDGER" | grep -q '"wake": 2.*"changed".*prompt/situation.md.*+The rest is yours' || fail "wake 2 missing the situation.md diff"
 echo "$LEDGER" | grep -q '"wake": 2.*"rest": true' || fail "wake 2 not marked as rested"
 echo "$LEDGER" | grep -q '"event": "loop-exit", "code": 143' || fail "loop-exit 143 not recorded"
-[ ! -e "$SINGULARI_HOME/status/now.txt" ] || fail "the agent's label outlived the loop"
 grep -q '"state": "the loop has stopped"' "$SINGULARI_HOME/status/now.json" || fail "now.json does not say the loop stopped"
 "$PY" -c "import json,sys; i=json.load(open('$SINGULARI_HOME/.trace/trace/index.json')); assert i['wakes']==2 and i['rests']==1 and i['exits'][0]['code']==143 and i['files_changed_since_birth']==['prompt/situation.md'], i"
-echo "trace OK: 2 wakes, 1 rest, 1 poke-failed, loop-exit 143 cleared the status line, situation.md diff recorded"
+echo "trace OK: 2 wakes, 1 rest, 1 poke-failed, loop-exit 143 wrote the status line, situation.md diff recorded"

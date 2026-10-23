@@ -24,7 +24,7 @@ import re
 import time
 import urllib.request
 
-from status import write_now
+from status import STATUS_DIR, write_now
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -33,6 +33,8 @@ MEMORY = os.path.join(HOME, "memory")
 SELF = os.path.join(MEMORY, "self.md")
 HISTORY = os.path.join(MEMORY, "history.jsonl")
 PENDING_VISION = os.path.join(HOME, "agent", ".pending_vision.json")
+LABEL = os.path.join(STATUS_DIR, "now.txt")
+CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
 LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
@@ -258,10 +260,19 @@ def main():
             f.write("I have just woken for the first time.\n")
         print(f"born: {MODEL}, memory at {MEMORY}")
 
+    cleared = read(CLEARED_LABEL).strip() if os.path.exists(CLEARED_LABEL) else ""
+    for stale in (CLEARED_LABEL, PENDING_VISION):
+        try:
+            os.remove(stale)
+        except FileNotFoundError:
+            pass
     tools = load_tools()
     specs = tool_specs(tools)
     messages = [{"role": "system", "content": system_prompt()}, *recent_history()]
-    first = {"role": "user", "content": time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC)", time.gmtime())}
+    text = time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC", time.gmtime())
+    if cleared:
+        text += f'; your status label "{cleared[:200]}" was cleared when that wake ended'
+    first = {"role": "user", "content": text + ")"}
     messages.append(first)
     remember(first)
 
@@ -292,6 +303,9 @@ def main():
         wake["error"] = f"{type(e).__name__}: {e}"[:500]
         raise
     finally:
+        if os.path.exists(LABEL):
+            wake["label"] = read(LABEL).strip()
+            os.replace(LABEL, CLEARED_LABEL)
         usage = wake["usage_statistics"]
         usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
         wake["dur_s"] = round(time.monotonic() - started, 1)

@@ -178,10 +178,6 @@ def git(*args, timeout=60):
 def main():
     if sys.argv[1] == "--exit":
         write_now("the loop has stopped", f"exit {sys.argv[2]}")
-        try:
-            os.remove(os.path.join(STATUS_DIR, "now.txt"))
-        except FileNotFoundError:
-            pass
     if not os.path.isdir(TRACE_WORKTREE):
         print(f"no trace worktree at {TRACE_WORKTREE}; nothing recorded", file=sys.stderr)
         return
