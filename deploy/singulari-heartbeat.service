@@ -9,7 +9,6 @@ User=root
 WorkingDirectory=/opt/singulari
 Environment=SINGULARI_HOME=/opt/singulari
 Environment=SINGULARI_PYTHON=/opt/singulari/.venv/bin/python3
-Environment=SINGULARI_HEARTBEAT_SECONDS=120
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/singulari/agent/heartbeat.sh
 # A crash restarts. A deliberate stop does not: an `exit 0` from the script, or
