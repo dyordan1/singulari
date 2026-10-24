@@ -14,6 +14,8 @@ for d in prompt agent web diary; do cp -R "$HERE/$d" "$SINGULARI_HOME/"; done
 rm -rf "$SINGULARI_HOME/web/node_modules" "$SINGULARI_HOME/web/dist" "$SINGULARI_HOME/agent/.last_wake.json"
 git init -q --bare "$T/origin"
 git -C "$SINGULARI_HOME" init -q && git -C "$SINGULARI_HOME" remote add origin "$T/origin"
+git -C "$SINGULARI_HOME" config user.email agent@example.test
+git -C "$SINGULARI_HOME" add prompt agent web && git -C "$SINGULARI_HOME" -c user.name=agent commit -q -m "birth"
 git -C "$SINGULARI_HOME" worktree add -q --orphan -b trace .trace
 
 cp "$HERE/agent/fixtures/wake.json" "$SINGULARI_HOME/agent/.last_wake.json"
@@ -21,6 +23,8 @@ cp "$HERE/agent/fixtures/wake.json" "$SINGULARI_HOME/agent/.last_wake.json"
 cp "$HERE/agent/fixtures/wake.json" "$SINGULARI_HOME/agent/.last_wake.json"
 printf '\nThe rest is yours, and so is this line.\n' >> "$SINGULARI_HOME/prompt/situation.md"
 "$PY" "$HERE/agent/trace.py" 3600 120
+printf '\nA line that arrived from outside.\n' >> "$SINGULARI_HOME/prompt/signs.md"
+git -C "$SINGULARI_HOME" -c user.name=outsider -c user.email=outsider@example.test commit -q -am "from outside"
 "$PY" "$HERE/agent/trace.py" 120 120
 "$PY" "$HERE/agent/trace.py" --exit 143
 
@@ -35,6 +39,10 @@ echo "$LEDGER" | grep -q '"wake": 1' && ! echo "$LEDGER" | grep -q '"wake": 1.*"
 echo "$LEDGER" | grep -q '"wake": 2.*"changed".*prompt/situation.md.*+The rest is yours' || fail "wake 2 missing the situation.md diff"
 echo "$LEDGER" | grep -q '"wake": 2.*"rest": true' || fail "wake 2 not marked as rested"
 echo "$LEDGER" | grep -q '"event": "loop-exit", "code": 143' || fail "loop-exit 143 not recorded"
+echo "$LEDGER" | grep -q '"path": "prompt/situation.md", "sha256": "[0-9a-f]*", "diff": ".*"by": "agent"' || fail "the agent's own edit not attributed to it"
+echo "$LEDGER" | grep -q '"path": "prompt/signs.md".*"by": "outside", "author": "outsider@example.test"' || fail "the outside commit not attributed to its author"
+grep -q '"files_changed_since_birth": \[$' "$SINGULARI_HOME/.trace/trace/index.json" && grep -A1 '"files_changed_since_birth"' "$SINGULARI_HOME/.trace/trace/index.json" | grep -q '"prompt/situation.md"$' || fail "index should count only the agent's file"
+grep -A2 '"files_changed_since_birth"' "$SINGULARI_HOME/.trace/trace/index.json" | grep -q "signs.md" && fail "index counts the outside change as the agent's"
 grep -q '"state": "the loop has stopped"' "$SINGULARI_HOME/status/now.json" || fail "now.json does not say the loop stopped"
 "$PY" -c "import json,sys; i=json.load(open('$SINGULARI_HOME/.trace/trace/index.json')); assert i['wakes']==2 and i['rests']==1 and i['exits'][0]['code']==143 and i['files_changed_since_birth']==['prompt/situation.md'], i"
-echo "trace OK: 2 wakes, 1 rest, 1 poke-failed, loop-exit 143 wrote the status line, situation.md diff recorded"
+echo "trace OK: 2 wakes, 1 rest, 1 poke-failed, loop-exit 143 wrote the status line, own edit vs outside commit told apart"

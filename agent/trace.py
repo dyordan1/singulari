@@ -8,7 +8,8 @@ The branch is a separate worktree at SINGULARI_HOME/.trace (deploy/SETUP.md
 creates it). Each day's beats go in trace/<YYYY-MM-DD>.jsonl; trace/index.json
 carries the running totals the website's /status page reads first. A beat's
 line holds what the agent did (from agent/.last_wake.json, written by poke),
-what changed on disk under prompt/, agent/ and web/ since the previous beat (a
+what changed on disk under prompt/, agent/ and web/ since the previous beat,
+each change marked as the agent's own or as a commit that arrived from outside (a
 unified diff per text file, from a snapshot kept under status/), and how long the
 loop then slept.
 
@@ -106,14 +107,64 @@ def changes():
     return changed
 
 
+def git_home(*args):
+    return subprocess.run(["git", "-C", HOME, *args], capture_output=True, text=True, timeout=60)
+
+
+def attribute(changed, prev_head, head):
+    """Who changed each file: the agent, or a commit that arrived from outside.
+    A change is from outside when HEAD moved past commits touching the path by
+    someone other than the agent's own git author and the file now matches
+    HEAD. A file the agent had edited locally stays its own even if a pull
+    touched it too."""
+    own = git_home("config", "user.email").stdout.strip()
+    for c in changed:
+        c["by"] = "agent"
+        if not prev_head or head == prev_head:
+            continue
+        authors = git_home("log", "--format=%ae", f"{prev_head}..{head}", "--", c["path"]).stdout.split()
+        matches_head = c.get("deleted") or git_home("diff", "--quiet", head, "--", c["path"]).returncode == 0
+        if authors and matches_head and authors[0] != own:
+            c["by"], c["author"] = "outside", authors[0]
+    return changed
+
+
+def files_changed_by_agent():
+    """Rebuilt from the day files for an index written before changes carried
+    `by`: back then a path counts as the agent's if a write, edit or shell call
+    of that wake named it."""
+    paths = []
+    for name in sorted(os.listdir(TRACE_DIR)):
+        if not name.endswith(".jsonl"):
+            continue
+        with open(os.path.join(TRACE_DIR, name), encoding="utf-8") as f:
+            for line in f:
+                beat = json.loads(line)
+                named = " ".join(
+                    str((m.get("args") or {}).get("path") or (m.get("args") or {}).get("command") or "")
+                    for m in beat.get("messages", [])
+                    if m["type"] == "tool_call_message" and m.get("tool") in ("write_file", "edit_file", "shell") and isinstance(m.get("args"), dict)
+                )
+                for c in beat.get("changed", []):
+                    by = c.get("by") or ("agent" if c["path"] in named else "outside")
+                    if by == "agent" and c["path"] not in paths:
+                        paths.append(c["path"])
+    return paths
+
+
 def load_index():
     if os.path.exists(INDEX):
         with open(INDEX, encoding="utf-8") as f:
-            return json.load(f)
+            index = json.load(f)
+        if "head" not in index:
+            index["files_changed_since_birth"] = files_changed_by_agent()
+            index["head"] = None
+        return index
     return {
         "born": None, "wakes": 0, "last": None, "dur_total_s": 0.0, "mean_dur_s": 0.0,
         "interval": {"declared": None, "mean_gap_s": None}, "gap_total_s": 0.0, "gaps": 0,
         "tools": {}, "tokens": 0, "rests": 0, "diary_entries": 0, "files_changed_since_birth": [], "days": [], "exits": [],
+        "head": None,
     }
 
 
@@ -155,11 +206,13 @@ def beat_entry(index, sleep_s, interval):
     if sleep_s > interval:
         entry["rest"] = True
         index["rests"] += 1
-    changed = changes()
+    head = git_home("rev-parse", "HEAD").stdout.strip() or None
+    changed = attribute(changes(), index["head"], head)
+    index["head"] = head
     if changed:
         entry["changed"] = changed
         for c in changed:
-            if c["path"] not in index["files_changed_since_birth"]:
+            if c["by"] == "agent" and c["path"] not in index["files_changed_since_birth"]:
                 index["files_changed_since_birth"].append(c["path"])
     index["diary_entries"] = diary_count()
     return entry

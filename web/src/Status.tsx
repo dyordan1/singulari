@@ -33,6 +33,8 @@ interface Message {
 
 interface Change {
   path: string;
+  by?: string;
+  author?: string;
   diff?: string;
   deleted?: boolean;
 }
@@ -49,6 +51,14 @@ interface Beat {
   label?: string;
   messages?: Message[];
   changed?: Change[];
+}
+
+function own(beat: Beat): Change[] {
+  return beat.changed?.filter((c) => c.by !== "outside") ?? [];
+}
+
+function outside(beat: Beat): Change[] {
+  return beat.changed?.filter((c) => c.by === "outside") ?? [];
 }
 
 function fmtDur(s: number | null | undefined): string {
@@ -209,7 +219,10 @@ function BeatView({ beat }: { beat: Beat }) {
         <span style={{ color: FAINT }}>{time}</span> · #{beat.wake} · {fmtDur(beat.dur_s)} ·{" "}
         {calls.length} tool call{calls.length === 1 ? "" : "s"}
         {beat.rest && ` · then rested ${fmtDur(beat.sleep_s)}`}
-        {beat.changed && ` · changed ${beat.changed.length} file${beat.changed.length === 1 ? "" : "s"}`}
+        {own(beat).length > 0 && ` · changed ${own(beat).length} file${own(beat).length === 1 ? "" : "s"}`}
+        {outside(beat).length > 0 && (
+          <span style={{ color: FAINT }}>{` · ${outside(beat).length} file${outside(beat).length === 1 ? "" : "s"} arrived from outside`}</span>
+        )}
         {beat.error && " · error"}
         <span style={{ color: DIM }}> {first.slice(0, 90)}</span>
         {beat.label && <span style={{ color: WHITE }}> · “{beat.label}”</span>}
@@ -219,8 +232,8 @@ function BeatView({ beat }: { beat: Beat }) {
         {beat.error && <pre style={pre("#7a4a4a")}>{beat.error}</pre>}
         {beat.changed?.map((c) => (
           <div key={c.path} style={{ marginTop: 12 }}>
-            <div style={{ color: WHITE }}>
-              {c.deleted ? "deleted " : "changed "}
+            <div style={{ color: c.by === "outside" ? FAINT : WHITE }}>
+              {c.by === "outside" ? `arrived from outside (${c.author}): ` : c.deleted ? "deleted " : "changed "}
               {c.path}
             </div>
             {c.diff && <Diff text={c.diff} />}
