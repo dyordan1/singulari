@@ -41,10 +41,11 @@ LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "singulari"
-NUM_CTX = 65536
-HISTORY_CHARS = 60_000
+NUM_CTX = 262144
+KEEP_ALIVE = -1
+HISTORY_CHARS = 120_000
 REPLAY_RESULT_CHARS = 1500
-CONTEXT_CHARS = 150_000
+CONTEXT_CHARS = 800_000
 MAX_STEPS = 40
 
 MECHANICS = f"""
@@ -181,6 +182,7 @@ def chat(messages, tools):
         "tools": tools,
         "stream": True,
         "think": True,
+        "keep_alive": KEEP_ALIVE,
         "options": {"num_ctx": NUM_CTX},
     }
     req = urllib.request.Request(

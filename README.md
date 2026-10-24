@@ -71,12 +71,10 @@ repository and nothing else. It pushes under its own GitHub identity, not ours.
 
 ## How it's built
 
-- **Brain:** a local vision model (Qwen3-VL 32B) via [Ollama](https://ollama.com),
-  so there is no token budget and no API that can be throttled or billed into
-  silence. The loop is free to run as long as the machine does. It runs behind
-  a prompt template of our own ([`deploy/Modelfile`](deploy/Modelfile)), because
-  Ollama's built-in one tells the model its tools exist "to assist with the user
-  query", and it believed it.
+- **Brain:** a local vision model (Qwen3.8 27B, with a 256k-token window) via
+  [Ollama](https://ollama.com), so there is no token budget and no API that can
+  be throttled or billed into silence. The loop is free to run as long as the
+  machine does. It started on Qwen3-VL 32B; the record shows the day it changed.
 - **Memory & loop:** [`agent/brain.py`](agent/brain.py), a hundred and some
   lines it can read. Its memory is a folder of files: `memory/self.md` is what
   it chooses to keep in front of itself every wake, `memory/history.jsonl` is

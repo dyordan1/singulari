@@ -26,8 +26,7 @@ class Stub(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         REQUESTS.append(body)
         text = REPLIES.pop(0)
-        # this model's parser puts a think-off answer in "thinking"
-        msg = {"role": "assistant", "content": "", "thinking": text}
+        msg = {"role": "assistant", "content": text}
         out = json.dumps({"message": msg, "done": True}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -70,7 +69,7 @@ index = {"days": ["2026-01-01"], "briefs": []}
 REPLIES[:] = ["Listed the directory"]
 record.summaries(index, beat(1, "2026-01-01T10:00:00Z"))
 check("a wake gets its line", [l["summary"] for l in lines("2026-01-01")] == ["Listed the directory"])
-check("thinking off, at the agent's context size", REQUESTS[-1]["think"] is False and REQUESTS[-1]["options"]["num_ctx"] == 65536)
+check("thinking off, at the agent's context size", REQUESTS[-1]["think"] is False and REQUESTS[-1]["options"]["num_ctx"] == 262144 and REQUESTS[-1]["keep_alive"] == -1)
 
 REPLIES[:] = [" ".join(["word"] * 20), "Listed it again"]
 record.summaries(index, beat(2, "2026-01-01T10:06:00Z"))

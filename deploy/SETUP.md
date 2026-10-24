@@ -25,18 +25,16 @@ its own.)
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh      # installs + enables ollama.service
-ollama pull qwen3-vl:32b                            # the brain (~21GB on disk)
+ollama pull qwen3.8:27b                             # the brain (~18GB on disk)
 ```
 
-Then, once the repo is cloned (step 3), build the model it actually talks to:
+Then, once the repo is cloned (step 3), build the model the loop talks to:
 the same weights behind a prompt template of our own, because Ollama's built-in
-one tells the model its tools exist "to assist with the user query"
+renderer tells the model not to "tell the user" about its tools
 (`deploy/Modelfile` explains):
 
 ```bash
-blob="$(ollama show qwen3-vl:32b --modelfile | awk '/^FROM/{print $2}')"
-sed "s|^FROM .*|FROM $blob|" /opt/singulari/deploy/Modelfile > /tmp/singulari.Modelfile
-ollama create singulari -f /tmp/singulari.Modelfile && rm /tmp/singulari.Modelfile
+/opt/singulari/deploy/makemodel.sh singulari
 ```
 
 ## 3. The repo + the agent's eyes

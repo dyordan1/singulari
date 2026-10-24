@@ -149,15 +149,12 @@ def ask(messages):
     """One non-streaming call to the agent's own model with thinking off, at
     the agent's own context size so the loaded runner is reused rather than
     reloaded."""
-    from brain import MODEL, NUM_CTX, OLLAMA
+    from brain import KEEP_ALIVE, MODEL, NUM_CTX, OLLAMA
 
-    body = {"model": MODEL, "messages": messages, "stream": False, "think": False, "options": {"num_ctx": NUM_CTX}}
+    body = {"model": MODEL, "messages": messages, "stream": False, "think": False, "keep_alive": KEEP_ALIVE, "options": {"num_ctx": NUM_CTX}}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=300) as r:
-        message = json.load(r)["message"]
-    # The model's output parser assumes it opens in thinking, whatever the
-    # request says, so with thinking off the answer arrives as "thinking".
-    return (message.get("content") or message.get("thinking") or "").strip()
+        return json.load(r)["message"]["content"].strip()
 
 
 def wake_line(beat, previous):

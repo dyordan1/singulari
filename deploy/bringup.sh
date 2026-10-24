@@ -17,10 +17,7 @@ systemctl enable --now docker
 
 log "2/3 ollama + the model"
 command -v ollama >/dev/null || retry sh -c 'curl -fsSL https://ollama.com/install.sh | sh'
-retry ollama pull qwen3-vl:32b
-blob="$(ollama show qwen3-vl:32b --modelfile | awk '/^FROM/{print $2}')"
-sed "s|^FROM .*|FROM $blob|" /opt/singulari/deploy/Modelfile > /tmp/singulari.Modelfile
-ollama create singulari -f /tmp/singulari.Modelfile && rm /tmp/singulari.Modelfile
+retry ollama pull qwen3.8:27b
 
 log "3/3 the repo and the agent's eyes"
 [ -d /opt/singulari/.git ] || retry git clone https://github.com/dyordan1/singulari.git /opt/singulari
@@ -28,4 +25,5 @@ cd /opt/singulari
 [ -x .venv/bin/python3 ] || python3 -m venv .venv
 retry .venv/bin/pip install -r agent/requirements.txt
 retry .venv/bin/playwright install --with-deps chromium
+deploy/makemodel.sh singulari
 log "done"
