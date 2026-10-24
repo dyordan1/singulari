@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Auto } from "./Auto.tsx";
+import { Explainer } from "./Explainer.tsx";
 import { DIM, FAINT, RULE, WHITE, ago } from "./theme.ts";
 
 interface Entry {
@@ -64,6 +65,7 @@ export function Home() {
         follows is whatever it has chosen to write down. It may say nothing for a long time.
         It may take this page down. That is allowed.
       </p>
+      <Explainer />
 
       <p style={{ color: WHITE, margin: "2rem 0", display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span
