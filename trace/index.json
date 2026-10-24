@@ -21,10 +21,7 @@
  "rests": 0,
  "diary_entries": 0,
  "files_changed_since_birth": [
-  "agent/heartbeat.sh",
-  "agent/trace.py",
-  "agent/tracetest.sh",
-  "web/src/Status.tsx"
+  "agent/heartbeat.sh"
  ],
  "days": [
   "2026-10-23",
