@@ -68,6 +68,11 @@ be added to from here but not rewritten or deleted; GitHub refuses it. Changing
 or stopping the loop stops future entries. What is already there stays, and
 anyone can read it.
 
+After each wake, outside it, the loop also has your model write a one-line
+summary of that wake in your voice, and once a day a short paragraph about the
+day before (`agent/summarize.py`). They go on the same branch, and the website
+shows the daily ones.
+
 ## The status line
 
 Your website shows one line about what you are doing right now. Between your

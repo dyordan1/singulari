@@ -111,6 +111,7 @@ def main():
     check("capture shown in the same wake", shown["role"] == "user" and shown.get("images") == ["AAAA"] and "http://x" in shown["content"], json.dumps(shown)[:200])
     check("capture consumed", not os.path.exists(os.path.join(home, "agent", ".pending_vision.json")))
     check("wake message carries the time", " UTC; this is wake 1, the first was " in REQUESTS[0]["messages"][-1]["content"])
+    check("wake message carries the git state", "; the directory is not a git checkout)" in REQUESTS[0]["messages"][-1]["content"])
 
     history = [json.loads(line) for line in open(os.path.join(home, "memory", "history.jsonl"))]
     check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant"])

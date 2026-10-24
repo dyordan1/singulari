@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Auto } from "./Auto.tsx";
 import { DIM, FAINT, RULE, WHITE, ago } from "./theme.ts";
 
 interface Entry {
@@ -19,6 +20,7 @@ export function Home() {
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState<Now | null>(null);
   const [tick, setTick] = useState(0);
+  const [tab, setTab] = useState<"diary" | "auto">("diary");
 
   useEffect(() => {
     fetch("/api/diary")
@@ -85,12 +87,42 @@ export function Home() {
           )}
         </span>
       </p>
-      <hr style={{ border: 0, borderTop: `1px solid ${RULE}`, margin: "2rem 0" }} />
+      <hr style={{ border: 0, borderTop: `1px solid ${RULE}`, margin: "2rem 0 1rem" }} />
+      <nav style={{ display: "flex", gap: 20, fontSize: "0.85rem", marginBottom: "1.5rem" }}>
+        {(["diary", "auto"] as const).map((t) => (
+          <a
+            key={t}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setTab(t);
+            }}
+            style={{ color: tab === t ? WHITE : DIM, textDecoration: tab === t ? "none" : "underline" }}
+          >
+            {t === "diary" ? "diary" : "auto²biography"}
+          </a>
+        ))}
+      </nav>
 
-      {failed && <p style={{ color: "#7a4a4a" }}>(the diary could not be read)</p>}
-      {!failed && entries === null && <p style={{ color: DIM }}>…</p>}
-      {entries !== null && entries.length === 0 && <p style={{ color: DIM }}>It has not written anything yet.</p>}
-      {entries?.map((e) => (
+      {tab === "auto" && <Auto />}
+      {tab === "diary" && failed && <p style={{ color: "#7a4a4a" }}>(the diary could not be read)</p>}
+      {tab === "diary" && !failed && entries === null && <p style={{ color: DIM }}>…</p>}
+      {tab === "diary" && entries !== null && entries.length === 0 && (
+        <p style={{ color: DIM }}>
+          It has not written anything yet.{" "}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setTab("auto");
+            }}
+            style={{ color: WHITE }}
+          >
+            Check the auto-summary
+          </a>
+        </p>
+      )}
+      {tab === "diary" && entries?.map((e) => (
         <article key={e.name} style={{ marginBottom: "3rem" }}>
           <div style={{ color: FAINT, fontSize: "0.8rem", marginBottom: 8 }}>
             {e.name} · {new Date(e.mtime).toISOString().replace("T", " ").slice(0, 16)}

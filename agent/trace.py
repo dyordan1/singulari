@@ -11,7 +11,9 @@ line holds what the agent did (from agent/.last_wake.json, written by poke),
 what changed on disk under prompt/, agent/ and web/ since the previous beat,
 each change marked as the agent's own or as a commit that arrived from outside (a
 unified diff per text file, from a snapshot kept under status/), and how long the
-loop then slept.
+loop then slept. After the beat, summarize.py writes a line for the wake under
+trace/summaries/ and, on the first beat of a new day, the day's brief under
+trace/briefs/.
 
 Nothing here may stall the heartbeat: every failure prints and exits 0.
 """
@@ -25,6 +27,7 @@ import subprocess
 import sys
 import time
 
+import summarize
 from status import STATUS_DIR, write_now
 
 HOME = os.environ.get("SINGULARI_HOME", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -228,6 +231,76 @@ def git(*args, timeout=60):
     return subprocess.run(["git", "-C", TRACE_WORKTREE, *AUTHOR, *args], capture_output=True, text=True, timeout=timeout)
 
 
+SUMMARIES = os.path.join(TRACE_DIR, "summaries")
+BRIEFS = os.path.join(TRACE_DIR, "briefs")
+
+
+def read_jsonl(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+def summarize_wake(entry):
+    """Append this wake's line to summaries/<day>.jsonl, given the lines of the
+    wakes before it (across the day boundary)."""
+    days = sorted(n for n in os.listdir(SUMMARIES) if n.endswith(".jsonl")) if os.path.isdir(SUMMARIES) else []
+    previous = []
+    for name in reversed(days):
+        previous = read_jsonl(os.path.join(SUMMARIES, name)) + previous
+        if len(previous) >= summarize.PREVIOUS_WAKES:
+            break
+    line = summarize.wake_line(entry, [(p["wake"], p["summary"]) for p in previous])
+    if line is None:
+        print(f"wake {entry['wake']}: no usable summary", file=sys.stderr)
+        return
+    os.makedirs(SUMMARIES, exist_ok=True)
+    with open(os.path.join(SUMMARIES, f"{entry['t'][:10]}.jsonl"), "a", encoding="utf-8") as f:
+        f.write(json.dumps({"wake": entry["wake"], "t": entry.get("started") or entry["t"], "summary": line}, ensure_ascii=False) + "\n")
+
+
+def brief_day(index, day):
+    """Write briefs/<day>.md from that day's wake lines and loop events, given
+    the briefs of the days before it."""
+    lines = {s["wake"]: s["summary"] for s in read_jsonl(os.path.join(SUMMARIES, f"{day}.jsonl"))}
+    entries = []
+    for beat in read_jsonl(os.path.join(TRACE_DIR, f"{day}.jsonl")):
+        t = (beat.get("started") or beat["t"])[11:16]
+        if summarize.event_line(beat):
+            entries.append((t, None, summarize.event_line(beat)))
+        if beat.get("wake") in lines:
+            entries.append((t, beat["wake"], lines[beat["wake"]]))
+    prior = []
+    for d in index.get("briefs", [])[-summarize.PREVIOUS_DAYS:]:
+        with open(os.path.join(BRIEFS, f"{d}.md"), encoding="utf-8") as f:
+            prior.append((d, f.read().strip()))
+    text = summarize.day_entry(day, entries, prior)
+    os.makedirs(BRIEFS, exist_ok=True)
+    with open(os.path.join(BRIEFS, f"{day}.md"), "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+    index.setdefault("briefs", []).append(day)
+
+
+def summaries(index, entry):
+    """The observatory's annotations, after the beat is recorded: a line for
+    this wake, and on the first beat of a new UTC day, the brief for the day
+    before it if it has lines. Either failing leaves the beat as it is."""
+    if "wake" in entry:
+        try:
+            summarize_wake(entry)
+        except Exception as e:  # noqa: BLE001 — a summary must never stall the heartbeat
+            print(f"wake summary failed: {type(e).__name__}: {e}", file=sys.stderr)
+    today = entry["t"][:10]
+    done = set(index.get("briefs", []))
+    for day in index["days"]:
+        if day < today and day not in done and os.path.exists(os.path.join(SUMMARIES, f"{day}.jsonl")):
+            try:
+                brief_day(index, day)
+            except Exception as e:  # noqa: BLE001
+                print(f"daily brief failed: {type(e).__name__}: {e}", file=sys.stderr)
+
+
 def main():
     if sys.argv[1] == "--exit":
         write_now("the loop has stopped", f"exit {sys.argv[2]}")
@@ -245,6 +318,7 @@ def main():
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     if day not in index["days"]:
         index["days"].append(day)
+    summaries(index, entry)
     with open(INDEX, "w", encoding="utf-8") as f:
         json.dump(index, f, indent=1)
     label = f"wake {entry['wake']}" if "wake" in entry else entry.get("event", "beat")

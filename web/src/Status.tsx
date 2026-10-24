@@ -3,10 +3,7 @@
 // can follow the link and read the same files.
 import { marked } from "marked";
 import { useEffect, useState } from "react";
-import { DIM, FAINT, INK, RULE, WHITE, ago, stamp } from "./theme.ts";
-
-const RAW = "https://raw.githubusercontent.com/dyordan1/singulari/trace/trace/";
-const BRANCH = "https://github.com/dyordan1/singulari/tree/trace/trace";
+import { BRANCH, DIM, FAINT, INK, RAW, RULE, WHITE, ago, stamp } from "./theme.ts";
 
 interface Index {
   born: string | null;
@@ -280,7 +277,7 @@ function Diff({ text }: { text: string }) {
   );
 }
 
-function Prose({ text, color, italic }: { text: string; color: string; italic?: boolean }) {
+export function Prose({ text, color, italic }: { text: string; color: string; italic?: boolean }) {
   return (
     <div
       className="prose"

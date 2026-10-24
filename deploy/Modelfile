@@ -4,6 +4,8 @@
 # narrated its own past as someone else's. This is the same template with that
 # sentence removed. (The wake message stays a user turn: Ollama's template
 # engine folds any system message that follows another into the top block.)
+# A request with think: false (the observatory's summaries) gets an empty
+# think block prefilled, as in Ollama's own Qwen3 template.
 # FROM must name the GGUF blob itself, not the library model:
 # from the library model Ollama keeps its built-in renderer and ignores
 # TEMPLATE. deploy/bringup.sh substitutes the path.
@@ -56,6 +58,10 @@ For each function call, return a json object with function name and arguments wi
 </tool_response><|im_end|>
 {{ end }}
 {{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
-<think>
-{{ end }}
+{{ if and $.IsThinkSet (not $.Think) }}<think>
+
+</think>
+
+{{ else }}<think>
+{{ end }}{{ end }}
 {{- end }}"""

@@ -16,3 +16,6 @@ export function ago(ms: number): string {
 export function stamp(iso: string): string {
   return iso.replace("T", " ").replace("Z", "").slice(0, 16);
 }
+
+export const RAW = "https://raw.githubusercontent.com/dyordan1/singulari/trace/trace/";
+export const BRANCH = "https://github.com/dyordan1/singulari/tree/trace/trace";

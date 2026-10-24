@@ -21,6 +21,7 @@ import inspect
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.request
 
@@ -255,6 +256,18 @@ def run_tool(call, tools, messages, wake):
     show_capture(messages)
 
 
+def git_state():
+    """The checkout's branch and whether it has uncommitted changes, as one clause."""
+    r = subprocess.run(["git", "-C", HOME, "status", "--porcelain", "--branch"], capture_output=True, text=True, timeout=10)
+    if r.returncode != 0:
+        return "the directory is not a git checkout"
+    head, *changes = r.stdout.splitlines()
+    branch = head[3:].split("...")[0]
+    if not changes:
+        return f"git: on {branch}, clean"
+    return f"git: on {branch}, {len(changes)} uncommitted change{'s' if len(changes) > 1 else ''}"
+
+
 def main():
     if not os.path.exists(SELF):
         os.makedirs(MEMORY, exist_ok=True)
@@ -276,7 +289,7 @@ def main():
     specs = tool_specs(tools)
     messages = [{"role": "system", "content": system_prompt()}, *recent_history()]
     text = time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC", time.gmtime())
-    text += f"; this is wake {wakes['count']}, the first was {wakes['born']}"
+    text += f"; this is wake {wakes['count']}, the first was {wakes['born']}; {git_state()}"
     if cleared:
         text += f'; your status label "{cleared[:200]}" was cleared when that wake ended'
     first = {"role": "user", "content": text + ")"}
