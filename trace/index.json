@@ -1,25 +1,25 @@
 {
  "born": "2026-10-23T04:18:08Z",
- "wakes": 512,
- "last": "2026-10-25T10:52:02Z",
- "dur_total_s": 44850.09999999997,
- "mean_dur_s": 87.6,
+ "wakes": 513,
+ "last": "2026-10-25T11:40:52Z",
+ "dur_total_s": 45062.69999999997,
+ "mean_dur_s": 87.8,
  "interval": {
   "declared": 300,
-  "mean_gap_s": 384.4
+  "mean_gap_s": 389.4
  },
- "gap_total_s": 196434.0,
- "gaps": 511,
+ "gap_total_s": 199364.0,
+ "gaps": 512,
  "tools": {
-  "read_file": 52,
-  "write_file": 411,
+  "read_file": 58,
+  "write_file": 413,
   "screenshot": 8,
   "web_fetch": 31,
-  "shell": 61,
-  "rest": 1
+  "shell": 63,
+  "rest": 2
  },
- "rests": 1,
- "diary_entries": 1,
+ "rests": 2,
+ "diary_entries": 2,
  "files_changed_since_birth": [
   "agent/heartbeat.sh"
  ],
@@ -34,10 +34,10 @@
    "code": 143
   }
  ],
- "head": "f7a476126aaa7482ee0a9bdf17333d16b6beef4c",
+ "head": "de73438a372d0fccfde73d93cff29d2c62868c61",
  "briefs": [
   "2026-10-23",
   "2026-10-24"
  ],
- "generated_tokens": 1021188
+ "generated_tokens": 1030136
 }
