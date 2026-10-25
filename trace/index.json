@@ -1,23 +1,22 @@
 {
  "born": "2026-10-23T04:18:08Z",
- "wakes": 494,
- "last": "2026-10-25T08:58:02Z",
- "dur_total_s": 43786.79999999996,
+ "wakes": 495,
+ "last": "2026-10-25T09:04:27Z",
+ "dur_total_s": 43860.499999999956,
  "mean_dur_s": 88.6,
  "interval": {
   "declared": 300,
   "mean_gap_s": 384.6
  },
- "gap_total_s": 189594.0,
- "gaps": 493,
+ "gap_total_s": 189979.0,
+ "gaps": 494,
  "tools": {
   "read_file": 49,
-  "write_file": 391,
+  "write_file": 392,
   "screenshot": 7,
   "web_fetch": 29,
   "shell": 42
  },
- "tokens": 22351932,
  "rests": 0,
  "diary_entries": 0,
  "files_changed_since_birth": [
@@ -34,9 +33,10 @@
    "code": 143
   }
  ],
- "head": "692849181e11672bd9c8dfcab2e4094c2ad470aa",
+ "head": "e4eb78f7044bfc98cf105772d2fcca733bccb199",
  "briefs": [
   "2026-10-23",
   "2026-10-24"
- ]
+ ],
+ "generated_tokens": 987154
 }
