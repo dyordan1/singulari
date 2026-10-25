@@ -5,7 +5,7 @@
 set -u
 cd "$(dirname "$0")/.."
 PY="${SINGULARI_PYTHON:-python3}"
-INTERVAL=120
+INTERVAL=300
 trap 'exit 143' TERM
 trap 'exit 130' INT
 trap 'code=$?; "$PY" agent/trace.py --exit "$code" || true' EXIT
