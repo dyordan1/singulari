@@ -5,9 +5,7 @@ The agent is a model, five tools, and a folder of files that is its memory:
 
 - memory/self.md        what it chooses to keep in front of itself, every wake
 - memory/history.jsonl  every message it has sent, received or seen, appended
-                        as it happens; replayed from a start that moves only
-                        when the replay nears the window, and then what
-                        dropped out is summarized (agent/compact.py)
+                        as it happens; replayed from the last compaction
 
 Every word the model is shown comes from prompt/ (agent/prompts.py). The system
 prompt is situation.md and mechanics.md. A wake sends one message, wake.md,
@@ -18,11 +16,14 @@ the call, as an image. The wake is summarised to agent/.last_wake.json for the
 record (agent/trace.py) and narrated step by step to status/now.json for the
 website.
 
-Each wake's prompt is the previous wake's prompt with that wake and the new
-message appended, so the model server, which keeps earlier prompts' caches in
-RAM, computes only what is new. That holds only while nothing before the new
-part changes: anything that changes every wake (self.md, the time) goes in the
-wake message, and the replay is the history exactly as first sent.
+The replay is the last compaction's summary, then every message since it,
+exactly as first sent. When it reaches COMPACT_CHARS, agent/compact.py
+summarizes all of it into a new summary and the replay starts over from that.
+Between compactions each wake's prompt is the previous wake's prompt with that
+wake and the new message appended, so the model server, which keeps earlier
+prompts' caches in RAM, computes only what is new. That holds only while
+nothing before the new part changes: anything that changes every wake
+(self.md, the time) goes in the wake message.
 """
 
 import importlib.util
@@ -53,8 +54,7 @@ OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "singulari"
 NUM_CTX = 262144
 KEEP_ALIVE = -1
-REPLAY_MAX_CHARS = 560_000
-REPLAY_KEEP_CHARS = 200_000
+COMPACT_CHARS = 640_000
 CONTEXT_CHARS = 800_000
 MAX_STEPS = 40
 
@@ -126,7 +126,7 @@ def history_entries(start=None):
     entries = []
     with open(HISTORY, "rb") as f:
         if start is None or not 0 <= start <= size:
-            f.seek(max(0, size - 4 * REPLAY_MAX_CHARS))
+            f.seek(max(0, size - 4 * COMPACT_CHARS))
             if f.tell():
                 f.readline()
         else:
@@ -141,16 +141,16 @@ def history_entries(start=None):
     return entries
 
 
-def cut_index(entries):
-    """Where a replay is cut to keep its newest REPLAY_KEEP_CHARS: on a user
-    message, so no tool result appears without its call."""
-    i, kept = len(entries), 0
-    while i > 0 and kept <= REPLAY_KEEP_CHARS:
-        i -= 1
-        kept += len(json.dumps(entries[i][1]))
-    while i < len(entries) and entries[i][1]["role"] != "user":
-        i += 1
-    return i
+def newest(entries):
+    """The newest entries within COMPACT_CHARS, starting on a user message, so
+    no tool result appears without its call."""
+    k, kept = len(entries), 0
+    while k > 0 and kept + len(json.dumps(entries[k - 1][1])) <= COMPACT_CHARS:
+        k -= 1
+        kept += len(json.dumps(entries[k][1]))
+    while k < len(entries) and entries[k][1]["role"] != "user":
+        k += 1
+    return entries[k:]
 
 
 def replay_state():
@@ -158,17 +158,13 @@ def replay_state():
 
 
 def recent_history():
-    """The replay: the summary of what dropped out, then the history from the
-    replay's start, as first sent. agent/compact.py moves the start; with none
-    yet, the newest REPLAY_KEEP_CHARS stand alone."""
+    """The replay: the last compaction's summary, then the history since it,
+    as first sent. With no compaction yet, the newest COMPACT_CHARS."""
     state = replay_state()
     if state is None:
-        entries = history_entries()
-        entries = entries[cut_index(entries):]
-    else:
-        entries = history_entries(state["start"])
-    msgs = [m for _, m in entries]
-    if state and state.get("summary"):
+        return [m for _, m in newest(history_entries())]
+    msgs = [m for _, m in history_entries(state["start"])]
+    if state.get("summary"):
         msgs.insert(0, {"role": "user", "content": prompts.text("compacted.md", summary=state["summary"])})
     return msgs
 

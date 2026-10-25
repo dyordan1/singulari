@@ -1,5 +1,5 @@
 # The lines that frame a compaction's input for prompt/compact/system.md.
-dropping = "The messages dropping out of your replay, in order:"
+dropping = "The messages since your previous summary, in order:"
 loop = "[the loop] $text"
 thinking = "(thinking) $text"
 said = "(you said) $text"
@@ -15,4 +15,5 @@ times = "$n times"
 result_seen = "  $label: $result"
 nothing_ran = "No tool ran in these messages."
 nothing_else = "Nothing else was run, read or checked, whatever your thinking or replies say."
+ask = "Write the summary now, from the record and the messages above: the five parts, in the first person, about 500 words, inside <summary></summary>."
 too_long = "That was $words words. Write it again in about 500 words, inside <summary></summary>."

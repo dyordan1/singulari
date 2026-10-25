@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Exercises compaction (compact.py via trace.py) against a stand-in for
-Ollama: under the cap nothing happens; the first time over it, what drops out
-is summarized and the replay's start moves to a user message; the next one
-carries the previous summary and its starting wake; an over-long answer is
-asked again once; a dead Ollama still moves the start and keeps the summary
-it had; the summary comes first in the next wake's replay."""
+Ollama: the first compaction takes the newest COMPACT_CHARS; the replay is
+then the summary alone, and grows wake by wake; under COMPACT_CHARS nothing
+happens; at it, the whole replay, previous summary included, becomes the next
+summary; an answer without the tags or over-long is asked again once; a dead
+Ollama still starts the replay over and keeps the summary it had."""
 
 import json
 import os
@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import brain  # noqa: E402
 import trace as record  # noqa: E402
 
-brain.REPLAY_MAX_CHARS, brain.REPLAY_KEEP_CHARS = 6000, 2000
+brain.COMPACT_CHARS = 6000
 
 
 def check(name, ok, note=""):
@@ -73,40 +73,50 @@ def compacted():
 
 
 entry = {"t": "2026-10-24T10:00:00Z", "wake": 1}
-wakes(100, 5)
+wakes(100, 20)
 REPLIES.append("<summary>FIRST SUMMARY</summary>")
 record.compaction(entry)
 state = brain.replay_state()
-check("with no start yet, the first compaction runs", len(REQUESTS) == 1 and state["summary"] == "FIRST SUMMARY")
-check("its input is the transcript and the record, no previous summary", "write_file memory/self.md" in REQUESTS[0]["messages"][1]["content"] and "previous summary" not in REQUESTS[0]["messages"][1]["content"])
+first = REQUESTS[0]["messages"][1]["content"]
+check("with no compaction yet, the first one runs", len(REQUESTS) == 1 and state["summary"] == "FIRST SUMMARY")
+check("over the newest COMPACT_CHARS of history, from a wake", "wake 100 " not in first and first.split("\n\n")[1].startswith("[the loop]") and "wake 119 " in first)
 check("thinking on, the agent's model", REQUESTS[0]["think"] is True and REQUESTS[0]["model"] == "singulari")
-entries = brain.history_entries(state["start"])
-check("the start is on a user message", entries[0][1]["role"] == "user")
+check("everything so far is summarized: the replay is the summary alone", state["start"] == os.path.getsize(brain.HISTORY) and len(brain.recent_history()) == 1 and "FIRST SUMMARY" in brain.recent_history()[0]["content"])
 check("the compaction is recorded", compacted()[-1]["summary"] == "FIRST SUMMARY")
 
+wakes(120, 3)
 record.compaction(entry)
-check("under the cap, nothing happens", len(REQUESTS) == 1)
-
+check("under COMPACT_CHARS, nothing happens", len(REQUESTS) == 1)
 replay = brain.recent_history()
-check("the summary comes first in the replay", "FIRST SUMMARY" in replay[0]["content"] and replay[1] == entries[0][1])
-check("and the replay is the same next time", brain.recent_history() == replay)
+check("the replay is the summary, then every message since", "FIRST SUMMARY" in replay[0]["content"] and len(replay) == 1 + 3 * 4 and "wake 120," in replay[1]["content"])
+check("and the same next time", brain.recent_history() == replay)
 
-wakes(105, 20)
+wakes(123, 10)
 REPLIES += ["<summary>" + "word " * 1200 + "</summary>", "<summary>SECOND SUMMARY</summary>"]
 record.compaction(entry)
 second = REQUESTS[-2]["messages"][1]["content"]
-check("the next compaction carries the previous summary", "FIRST SUMMARY" in second)
-check("and covers from where the previous one started", f"from wake {state['since'][0]} " in second)
+check("at COMPACT_CHARS, the whole replay is summarized: the previous summary", "FIRST SUMMARY" in second)
+check("and every message since it", "wake 120," in second and "wake 132," in second)
+check("covering from where the previous summary started", f"from wake {state['since'][0]} " in second)
 check("an over-long answer is asked again once", len(REQUESTS) == 3 and "That was 1200 words" in REQUESTS[-1]["messages"][1]["content"])
-check("the retry's answer is kept", brain.replay_state()["summary"] == "SECOND SUMMARY")
+check("the retry's answer is kept, and the replay starts over", brain.replay_state()["summary"] == "SECOND SUMMARY" and len(brain.recent_history()) == 1)
+check("the request ends by asking for the summary", REQUESTS[-1]["messages"][1]["content"].rstrip().endswith("inside <summary></summary>."))
 
-before = brain.replay_state()
-wakes(125, 20)
+wakes(133, 12)
+REPLIES += ["You're right, and I should be direct about it.", "<summary>THIRD SUMMARY</summary>"]
+record.compaction(entry)
+check("an answer without the tags is not kept, and is asked again once", brain.replay_state()["summary"] == "THIRD SUMMARY" and REQUESTS[-1]["messages"] == REQUESTS[-2]["messages"])
+
+wakes(145, 12)
+REPLIES += ["Sure, here is what happened.", "Happy to help."]
+record.compaction(entry)
+check("twice without the tags, the previous summary stays, and the replay still starts over", brain.replay_state()["summary"] == "THIRD SUMMARY" and len(brain.recent_history()) == 1)
+
+wakes(157, 12)
 server.shutdown()
 server.server_close()
 record.compaction(entry)
-after = brain.replay_state()
-check("a dead Ollama still moves the start", after["start"] > before["start"])
-check("and keeps the summary it had", after["summary"] == "SECOND SUMMARY")
+check("a dead Ollama still starts the replay over", len(brain.recent_history()) == 1)
+check("and keeps the summary it had", brain.replay_state()["summary"] == "THIRD SUMMARY")
 check("and the failure is recorded", "error" in compacted()[-1])
 print("compaction OK")

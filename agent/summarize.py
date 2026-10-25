@@ -123,7 +123,7 @@ def ask(messages, think=False):
 
     body = {"model": MODEL, "messages": messages, "stream": False, "think": think, "keep_alive": KEEP_ALIVE, "options": {"num_ctx": NUM_CTX}}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=300) as r:
+    with urllib.request.urlopen(req, timeout=1800) as r:
         return json.load(r)["message"]["content"].strip()
 
 

@@ -1,3 +1,3 @@
-(what dropped out of your replay before this, as your model summarized it at the time:)
+(everything before this, as your model summarized it when your window filled:)
 
 $summary

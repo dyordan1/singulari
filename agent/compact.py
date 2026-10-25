@@ -1,6 +1,6 @@
-"""Compaction of the agent's replay: when it nears the window, the oldest part
-is summarized by the agent's own model, in its voice, and the summary stands
-in for that part at the start of every later wake's replay.
+"""Compaction of the agent's replay: when it reaches COMPACT_CHARS, all of it
+(the previous summary and every message since) is summarized by the agent's
+own model, in its voice, and the replay starts over from that summary.
 
 The prompts are in prompt/compact/; this module builds their input from
 history messages and reads the answer back.
@@ -105,50 +105,54 @@ def request(previous, messages, since=None):
     parts = [INPUT["dropping"], transcript(messages)]
     if previous:
         parts.append(fill(INPUT["previous"], summary=previous))
-    parts.append(record(messages, since))
+    parts += [record(messages, since), INPUT["ask"]]
     return text("compact/system.md"), "\n\n".join(parts)
 
 
 def summary_of(answer):
+    """The text inside <summary>; an answer without the tags is not a summary
+    (a model that lost the instruction answers as if someone had asked)."""
     m = SUMMARY.search(answer or "")
-    return (m.group(1) if m else answer or "").strip()
+    return m.group(1).strip() if m else ""
 
 
 def compaction(previous, messages, ask, since=None):
     """The new summary, or None. `since` is (wake, time) where the previous
     summary starts. `ask(system, user)` returns the model's answer.
-    Over twice the target it is asked once more, in a fresh request with the
-    word count; still over, nothing is kept."""
+    Without the tags it is asked once more; over twice the target, once more
+    with the word count; still wrong, nothing is kept."""
     system, user = request(previous, messages, since)
     summary = summary_of(ask(system, user))
     words = len(summary.split())
-    if words > TARGET_WORDS * 2:
+    if not summary:
+        summary = summary_of(ask(system, user))
+    elif words > TARGET_WORDS * 2:
         summary = summary_of(ask(system, user + "\n\n" + fill(INPUT["too_long"], words=words)))
     return summary if summary and len(summary.split()) <= TARGET_WORDS * 2 else None
 
 
 def compact():
-    """After a wake: if the replay is past REPLAY_MAX_CHARS (or has no start
-    yet), summarize what drops out, with the previous summary, and move the
-    start to keep the newest REPLAY_KEEP_CHARS. A failed summary still moves
-    the start and keeps the previous one, so the replay stays bounded. Returns
-    what changed, for the record, or None."""
+    """After a wake: when the replay (the last summary plus every message since
+    it) reaches COMPACT_CHARS, summarize all of it into a new summary and start
+    the replay over from that summary. A failed summary keeps the previous one
+    and still starts over, so the replay stays bounded. With no compaction yet,
+    the first takes the newest COMPACT_CHARS of history. Returns what changed,
+    for the record, or None."""
     state = brain.replay_state()
-    entries = brain.history_entries(state["start"] if state else None)
+    entries = brain.history_entries(state["start"]) if state else brain.newest(brain.history_entries())
     if not entries:
         return None
-    if state and sum(len(json.dumps(m)) for _, m in entries) <= brain.REPLAY_MAX_CHARS:
-        return None
-    i = brain.cut_index(entries)
     previous = state.get("summary") if state else None
-    record = {"from": state["start"] if state else None}
+    if state and len(previous or "") + sum(len(json.dumps(m)) for _, m in entries) < brain.COMPACT_CHARS:
+        return None
+    messages = [m for _, m in entries]
+    since = state.get("since") if previous else (wakes_in(messages) or [None])[0]
+    record = {"from": entries[0][0]}
     try:
-        dropped = [m for _, m in entries[:i]]
-        since = state.get("since") if state and previous else (wakes_in(dropped) or [None])[0]
-        summary = compaction(previous, dropped, lambda system, user: summarize.ask([{"role": "system", "content": system}, {"role": "user", "content": user}], think=True), since if previous else None)
+        summary = compaction(previous, messages, lambda system, user: summarize.ask([{"role": "system", "content": system}, {"role": "user", "content": user}], think=True), since if previous else None)
     except Exception as e:  # noqa: BLE001 — the replay must stay bounded whatever the model does
         summary, record["error"] = None, f"{type(e).__name__}: {e}"[:300]
-    new = {"start": entries[i][0] if i < len(entries) else os.path.getsize(brain.HISTORY), "summary": summary or previous, "since": since if summary or previous else None}
+    new = {"start": os.path.getsize(brain.HISTORY), "summary": summary or previous, "since": since if summary or previous else None}
     tmp = brain.REPLAY + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(new, f, ensure_ascii=False)

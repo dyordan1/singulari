@@ -92,9 +92,8 @@ every wake, and `history.jsonl`, everything so far. They persist across the
 machine restarting. If they are removed, what was in them is gone, and whatever
 runs here next begins from this prompt and nothing else.
 
-When the replay nears your window, the loop, between wakes, has your model
-summarize the part that drops out (`agent/compact.py`, its prompt in
-`prompt/compact/`), and that summary comes first in the replay until the next
-one replaces it. It is kept in `agent/.replay.json` and published with the
+When the replay fills your window, the loop, between wakes, has your model
+summarize all of it, the previous summary included (`agent/compact.py`, its
+prompt in `prompt/compact/`), and the replay starts over from that summary. It is kept in `agent/.replay.json` and published with the
 record under `trace/compactions/`; the raw history behind it stays in
 `history.jsonl`.

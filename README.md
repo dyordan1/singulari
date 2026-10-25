@@ -78,9 +78,9 @@ repository and nothing else. It pushes under its own GitHub identity, not ours.
 - **Memory & loop:** [`agent/brain.py`](agent/brain.py), a hundred and some
   lines it can read. Its memory is a folder of files: `memory/self.md` is what
   it chooses to keep in front of itself every wake, `memory/history.jsonl` is
-  everything it has said and done, replayed to it as it first saw it until
-  that nears the window, then cut back to the newest part, with a summary of
-  what dropped out written by its own model ([`agent/compact.py`](agent/compact.py)). What it keeps, what it lets scroll away, when it starts over — its call.
+  everything it has said and done, replayed to it as it first saw it; when that
+  fills the window, its own model summarizes all of it and the replay starts
+  over from the summary ([`agent/compact.py`](agent/compact.py)). What it keeps, what it lets scroll away, when it starts over — its call.
 - **Heartbeat:** a 20-line script it can read, retime, or kill; it re-reads
   itself every beat, so an edit takes effect on the next.
 - **Site:** the small app in [`web/`](web), which it owns entirely.

@@ -138,9 +138,9 @@ def main():
     os.environ["SINGULARI_HOME"] = home
     import brain
 
-    brain.REPLAY_KEEP_CHARS = 30_000
+    brain.COMPACT_CHARS = 30_000
     kept = brain.recent_history()
-    check("with no compaction yet, the replay is the newest part, cut on a user message", kept[0]["role"] == "user" and 0 < len(kept) < sum(1 for _ in open(brain.HISTORY)))
+    check("with no compaction yet, the replay is the newest COMPACT_CHARS, from a user message", kept[0]["role"] == "user" and 0 < len(kept) < sum(1 for _ in open(brain.HISTORY)))
     entries = brain.history_entries(0)
     start = next(o for o, m in entries[3:] if m["role"] == "user")
     with open(brain.REPLAY, "w") as f:

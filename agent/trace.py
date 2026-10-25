@@ -13,8 +13,8 @@ each change marked as the agent's own or as a commit that arrived from outside (
 unified diff per text file, from a snapshot kept under status/), and how long the
 loop then slept. After the beat, summarize.py writes a line for the wake under
 trace/summaries/ and, on the first beat of a new day, the day's brief under
-trace/briefs/; and when the agent's replay nears the window, compact.py
-summarizes what drops out of it, recorded under trace/compactions/.
+trace/briefs/; and when the agent's replay fills the window, compact.py
+summarizes all of it, recorded under trace/compactions/.
 
 Nothing here may stall the heartbeat: every failure prints and exits 0.
 """
