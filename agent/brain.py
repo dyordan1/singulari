@@ -49,6 +49,7 @@ LABEL = os.path.join(STATUS_DIR, "now.txt")
 CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
 LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
 REPLAY = os.path.join(HOME, "agent", ".replay.json")
+TRACE_INDEX = os.path.join(HOME, ".trace", "trace", "index.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "singulari"
@@ -274,6 +275,29 @@ def git_state():
     return prompts.fill(LOOP[key], branch=branch, count=len(changes))
 
 
+def outside_commits():
+    """Subjects of the commits that landed in the checkout since the last beat
+    recorded its HEAD, oldest first, by anyone but the agent's own git author:
+    pulls from outside while it rested."""
+    if not os.path.exists(TRACE_INDEX):
+        return []
+    last = json.loads(read(TRACE_INDEX)).get("head")
+    if not last:
+        return []
+    own = subprocess.run(["git", "-C", HOME, "config", "user.email"], capture_output=True, text=True, timeout=10).stdout.strip()
+    r = subprocess.run(["git", "-C", HOME, "log", "--reverse", "--format=%ae%x09%s", f"{last}..HEAD"], capture_output=True, text=True, timeout=10)
+    return [subject for author, _, subject in (line.partition("\t") for line in r.stdout.splitlines()) if author != own]
+
+
+def outside_note():
+    subjects = outside_commits()
+    if len(subjects) == 1:
+        return prompts.fill(LOOP["outside_one"], subject=subjects[0])
+    if subjects:
+        return prompts.fill(LOOP["outside_many"], subjects="\n".join(prompts.fill(LOOP["outside_line"], subject=s) for s in subjects))
+    return ""
+
+
 def main():
     if not os.path.exists(SELF):
         os.makedirs(MEMORY, exist_ok=True)
@@ -301,6 +325,7 @@ def main():
         born=wakes["born"],
         git=git_state(),
         label=prompts.fill(LOOP["label_cleared"], label=cleared[:200]) if cleared else "",
+        outside=outside_note(),
         self=read(SELF),
     )
     first = {"role": "user", "content": text}

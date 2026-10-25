@@ -147,6 +147,26 @@ def main():
         json.dump({"start": start, "summary": "EARLIER SUMMARY"}, f)
     replay = brain.recent_history()
     check("after a compaction, the summary comes first, then the history from the start", "EARLIER SUMMARY" in replay[0]["content"] and replay[1:] == [m for o, m in entries if o >= start])
+
+    repo = tempfile.mkdtemp(prefix="singulari-outside-")
+
+    def git(*args, author="agent@example.test"):
+        env2 = {**os.environ, "GIT_AUTHOR_EMAIL": author, "GIT_COMMITTER_EMAIL": author, "GIT_AUTHOR_NAME": "x", "GIT_COMMITTER_NAME": "x"}
+        return subprocess.run(["git", "-C", repo, *args], env=env2, capture_output=True, text=True, check=True).stdout.strip()
+
+    git("init", "-q")
+    git("config", "user.email", "agent@example.test")
+    git("commit", "-q", "--allow-empty", "-m", "the agent's own")
+    os.makedirs(os.path.join(repo, ".trace", "trace"))
+    with open(os.path.join(repo, ".trace", "trace", "index.json"), "w") as f:
+        json.dump({"head": git("rev-parse", "HEAD")}, f)
+    brain.HOME, brain.TRACE_INDEX = repo, os.path.join(repo, ".trace", "trace", "index.json")
+    check("no commits since the last beat, no note", brain.outside_note() == "")
+    git("commit", "-q", "--allow-empty", "-m", "A harness fix", author="outsider@example.test")
+    check("one outside commit, by its subject", brain.outside_note().strip() == "While you were resting, the following external commit landed: A harness fix")
+    git("commit", "-q", "--allow-empty", "-m", "Another", author="outsider@example.test")
+    git("commit", "-q", "--allow-empty", "-m", "the agent again")
+    check("several, listed oldest first, the agent's own left out", brain.outside_note().strip().endswith("landed:\n- A harness fix\n- Another"))
     print("brain OK")
 
 
