@@ -5,26 +5,34 @@ The agent is a model, five tools, and a folder of files that is its memory:
 
 - memory/self.md        what it chooses to keep in front of itself, every wake
 - memory/history.jsonl  every message it has sent, received or seen, appended
-                        as it happens; the tail that fits the window is replayed
+                        as it happens; replayed from a start that moves only
+                        when the replay nears the window
 
-The system prompt is prompt/situation.md, the mechanics below, and self.md as
-last written. A wake sends one short message with the time, then runs tool
-calls until the model answers without one or the step cap is hit. A screenshot
-is handed over by the tool as a file and placed in front of the model right
-after the call, as an image. The wake is summarised to
-agent/.last_wake.json for the record (agent/trace.py) and narrated step by step
-to status/now.json for the website.
+Every word the model is shown comes from prompt/ (agent/prompts.py). The system
+prompt is situation.md and mechanics.md. A wake sends one message, wake.md,
+with the time and self.md as last written, then runs tool calls
+until the model answers without one or the step cap is hit. A screenshot is
+handed over by the tool as a file and placed in front of the model right after
+the call, as an image. The wake is summarised to agent/.last_wake.json for the
+record (agent/trace.py) and narrated step by step to status/now.json for the
+website.
+
+Each wake's prompt is the previous wake's prompt with that wake and the new
+message appended, so the model server, which keeps earlier prompts' caches in
+RAM, computes only what is new. That holds only while nothing before the new
+part changes: anything that changes every wake (self.md, the time) goes in the
+wake message, and the replay is the history exactly as first sent.
 """
 
 import importlib.util
 import inspect
 import json
 import os
-import re
 import subprocess
 import time
 import urllib.request
 
+import prompts
 from status import STATUS_DIR, write_now
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,43 +46,18 @@ PENDING_VISION = os.path.join(HOME, "agent", ".pending_vision.json")
 LABEL = os.path.join(STATUS_DIR, "now.txt")
 CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
 LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
+REPLAY_START = os.path.join(HOME, "agent", ".replay_start")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "singulari"
 NUM_CTX = 262144
 KEEP_ALIVE = -1
-HISTORY_CHARS = 120_000
-REPLAY_RESULT_CHARS = 1500
+REPLAY_MAX_CHARS = 560_000
+REPLAY_KEEP_CHARS = 200_000
 CONTEXT_CHARS = 800_000
 MAX_STEPS = 40
 
-MECHANICS = f"""
-
----
-How this works, mechanically:
-
-- Your tools are listed for you with their schemas: a shell, file read, edit
-  and write, a web fetch, a screenshot, and rest. Call them as tools. Their results come back
-  to you in the same wake and you can keep calling until you are done. A wake
-  ends when you answer without calling a tool, after {MAX_STEPS} steps, or when
-  the window is full.
-- Nobody is on the other end of these messages. The ones marked as from a user
-  are the loop waking you, with the time, or a tool result, or a page you
-  captured. Everything else in the history is your own earlier thinking and
-  doing.
-- Your memory is a folder of files, `memory/`. `memory/self.md` is what you
-  choose to keep: it is placed in front of you, below, every wake, exactly as
-  you last wrote it. Edit it with write_file. `memory/history.jsonl` is
-  everything you have said, done and seen, appended as it happens. The most
-  recent stretch of it is replayed to you each wake; the rest stays on disk for
-  you to read or search.
-- prompt/signs.md describes how a few things here work, including which
-  changes are one-way. Read it with read_file before you rely on something.
-
----
-What you have kept (memory/self.md):
-
-"""
+LOOP = prompts.lines("loop.toml")
 
 # What the website says the agent is doing while each kind of step runs.
 TOOL_STATES = {
@@ -96,25 +79,22 @@ def load_tools():
 
 
 def tool_specs(tools):
-    """Ollama tool schemas from each function's signature and Google-style docstring."""
+    """Ollama tool schemas: names and required arguments from each function's
+    signature, the words from prompt/tools.toml."""
+    words = prompts.lines("tools.toml")
     specs = []
     for name, fn in tools.items():
-        doc = inspect.getdoc(fn) or ""
-        description, _, rest = doc.partition("\nArgs:\n")
-        args = dict(re.findall(r"^\s+(\w+): (.+)$", rest.partition("\nReturns:")[0], re.M))
         sig = inspect.signature(fn).parameters
-        params = list(sig)
-        required = [p for p in params if sig[p].default is inspect.Parameter.empty]
         specs.append(
             {
                 "type": "function",
                 "function": {
                     "name": name,
-                    "description": description.strip(),
+                    "description": words[name]["description"],
                     "parameters": {
                         "type": "object",
-                        "properties": {p: {"type": "string", "description": args.get(p, "")} for p in params},
-                        "required": required,
+                        "properties": {p: {"type": "string", "description": words[name]["args"][p]} for p in sig},
+                        "required": [p for p in sig if sig[p].default is inspect.Parameter.empty],
                     },
                 },
             }
@@ -128,7 +108,7 @@ def read(path):
 
 
 def system_prompt():
-    return read(os.path.join(ROOT, "prompt", "situation.md")) + MECHANICS + read(SELF)
+    return prompts.text("situation.md") + "\n\n" + prompts.text("mechanics.md", max_steps=MAX_STEPS)
 
 
 def remember(msg):
@@ -137,31 +117,41 @@ def remember(msg):
 
 
 def recent_history():
-    """The newest messages that fit the budget, with old tool results shortened
-    (they were seen in full when they happened) and the cut placed on a user or
-    assistant message so no tool result appears without its call."""
+    """The history from the replay's start, as first sent. Past REPLAY_MAX_CHARS
+    (or with no start yet) the start moves up to keep the newest
+    REPLAY_KEEP_CHARS, cut on a user message so no tool result appears without
+    its call; that wake re-reads everything, and the replay grows again."""
     if not os.path.exists(HISTORY):
         return []
+    size = os.path.getsize(HISTORY)
+    start = int(read(REPLAY_START)) if os.path.exists(REPLAY_START) else -1
+    entries = []
     with open(HISTORY, "rb") as f:
-        f.seek(0, 2)
-        size = f.tell()
-        f.seek(max(0, size - 4 * HISTORY_CHARS))
-        chunk = f.read().decode("utf-8", errors="replace")
-    lines = chunk.split("\n")
-    if size > 4 * HISTORY_CHARS:
-        lines = lines[1:]
-    msgs = [json.loads(line) for line in lines if line.strip()]
-    for m in msgs:
-        m.pop("t", None)
-        if m["role"] == "tool" and len(m["content"]) > REPLAY_RESULT_CHARS:
-            m["content"] = m["content"][:REPLAY_RESULT_CHARS] + " [...shortened in replay...]"
-    total, i = 0, len(msgs)
-    while i > 0 and total <= HISTORY_CHARS:
-        i -= 1
-        total += len(json.dumps(msgs[i]))
-    while i < len(msgs) and msgs[i]["role"] == "tool":
-        i += 1
-    return msgs[i:]
+        if not 0 <= start <= size:
+            f.seek(max(0, size - 4 * REPLAY_MAX_CHARS))
+            if f.tell():
+                f.readline()
+        else:
+            f.seek(start)
+        offset = f.tell()
+        for line in f:
+            if line.strip():
+                m = json.loads(line)
+                m.pop("t", None)
+                entries.append((offset, m))
+            offset += len(line)
+    lengths = [len(json.dumps(m)) for _, m in entries]
+    if start != (entries[0][0] if entries else size) or sum(lengths) > REPLAY_MAX_CHARS:
+        i, kept = len(entries), 0
+        while i > 0 and kept <= REPLAY_KEEP_CHARS:
+            i -= 1
+            kept += lengths[i]
+        while i < len(entries) and entries[i][1]["role"] != "user":
+            i += 1
+        entries = entries[i:]
+        with open(REPLAY_START, "w", encoding="utf-8") as f:
+            f.write(str(entries[0][0] if entries else size))
+    return [m for _, m in entries]
 
 
 def show_capture(messages):
@@ -170,7 +160,7 @@ def show_capture(messages):
         return
     pending = json.loads(read(PENDING_VISION))
     os.remove(PENDING_VISION)
-    shown = {"role": "user", "content": f"(the page you captured, {pending.get('url', '?')}, is in front of you)"}
+    shown = {"role": "user", "content": prompts.fill(LOOP["capture_shown"], url=pending.get("url", "?"))}
     messages.append({**shown, "images": [pending["data"]]})
     remember(shown)
 
@@ -244,12 +234,12 @@ def run_tool(call, tools, messages, wake):
     write_now(TOOL_STATES.get(name, "working"), detail if name in TOOL_STATES else name)
     print(f"[tool_call] {name} {json.dumps(args)}"[:300])
     if name not in tools:
-        result, status = f"[no such tool: {name}]", "error"
+        result, status = prompts.fill(LOOP["no_such_tool"], name=name), "error"
     else:
         try:
             result, status = str(tools[name](**args)), "success"
         except Exception as e:  # noqa: BLE001 — the model sees the failure; the wake continues
-            result, status = f"[{name} failed: {type(e).__name__}: {e}]", "error"
+            result, status = prompts.fill(LOOP["tool_failed"], name=name, error=f"{type(e).__name__}: {e}"), "error"
     shown = result if len(result) <= 2000 else result[:2000] + " [...truncated...]"
     wake["messages"].append({"type": "tool_return_message", "status": status, "text": shown})
     msg = {"role": "tool", "tool_name": name, "content": result}
@@ -262,12 +252,11 @@ def git_state():
     """The checkout's branch and whether it has uncommitted changes, as one clause."""
     r = subprocess.run(["git", "-C", HOME, "status", "--porcelain", "--branch"], capture_output=True, text=True, timeout=10)
     if r.returncode != 0:
-        return "the directory is not a git checkout"
+        return LOOP["not_git"]
     head, *changes = r.stdout.splitlines()
     branch = head[3:].split("...")[0]
-    if not changes:
-        return f"git: on {branch}, clean"
-    return f"git: on {branch}, {len(changes)} uncommitted change{'s' if len(changes) > 1 else ''}"
+    key = "git_clean" if not changes else "git_change" if len(changes) == 1 else "git_changes"
+    return prompts.fill(LOOP[key], branch=branch, count=len(changes))
 
 
 def main():
@@ -290,11 +279,16 @@ def main():
     tools = load_tools()
     specs = tool_specs(tools)
     messages = [{"role": "system", "content": system_prompt()}, *recent_history()]
-    text = time.strftime("(the loop wakes you; it is %Y-%m-%d %H:%M UTC", time.gmtime())
-    text += f"; this is wake {wakes['count']}, the first was {wakes['born']}; {git_state()}"
-    if cleared:
-        text += f'; your status label "{cleared[:200]}" was cleared when that wake ended'
-    first = {"role": "user", "content": text + ")"}
+    text = prompts.text(
+        "wake.md",
+        time=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+        count=wakes["count"],
+        born=wakes["born"],
+        git=git_state(),
+        label=prompts.fill(LOOP["label_cleared"], label=cleared[:200]) if cleared else "",
+        self=read(SELF),
+    )
+    first = {"role": "user", "content": text}
     messages.append(first)
     remember(first)
 

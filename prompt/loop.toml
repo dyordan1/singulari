@@ -1,0 +1,9 @@
+# The loop's own lines to the agent, besides prompt/wake.md.
+git_clean = "git: on $branch, clean"
+git_change = "git: on $branch, 1 uncommitted change"
+git_changes = "git: on $branch, $count uncommitted changes"
+not_git = "the directory is not a git checkout"
+label_cleared = '; your status label "$label" was cleared when that wake ended'
+capture_shown = "(the page you captured, $url, is in front of you)"
+no_such_tool = "[no such tool: $name]"
+tool_failed = "[$name failed: $error]"

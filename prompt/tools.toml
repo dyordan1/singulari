@@ -1,0 +1,52 @@
+# The seven tools as the agent sees them: what each is for, its arguments, and
+# every line it can answer with.
+
+[shell]
+description = "Run a shell command on this machine as the current user (root) and return its combined output."
+args.command = "The shell command to execute."
+result = "[exit $code]\n$output"
+stderr = "\n[stderr]\n"
+truncated = "\n[...truncated...]"
+
+[read_file]
+description = "Read a file from disk and return its contents from a given line. A long file comes back in pieces: the result says where it stopped, and you call again with that line as `start`."
+args.path = "Absolute or relative path to the file."
+args.start = "The line number to begin at (1 is the first line)."
+error = "[error reading $path: $error]"
+stopped = "\n[...stopped before line $line of $total; call again with start=$line]"
+
+[edit_file]
+description = "Replace one exact passage of a file with another. `old` must appear in the file exactly once, whitespace included; include enough surrounding lines to make it unique. For a new file or a full rewrite use write_file."
+args.path = "Absolute or relative path to the file."
+args.old = "The exact text to replace."
+args.new = "The text to put in its place."
+error = "[error reading $path: $error]"
+not_once = "[nothing changed: `old` appears $count times in $path, needs to be exactly 1]"
+edited = "[edited $path: $old chars -> $new]"
+
+[write_file]
+description = "Write content to a file on disk, creating parent directories and overwriting any existing file."
+args.path = "Absolute or relative path to the file."
+args.content = "The full contents to write."
+error = "[error writing $path: $error]"
+wrote = "[wrote $bytes bytes to $path]"
+
+[web_fetch]
+description = "Open a URL in a browser and return the page's text as a reader sees it, scripts having run. Works for pages built in the browser, your own site included, and for plain text or JSON."
+args.url = "The URL to open."
+error = "[error fetching $url: $error]"
+truncated = " [...truncated...]"
+
+[screenshot]
+description = "Capture a web page as an image so you can see it.\n\nTool results are text, so the image is not in this one; it is placed in front of you in the message right after it. Use it on your own site (https://singulari.io) or anywhere on the web."
+args.url = "The page to capture."
+error = "[could not capture $url: $error]"
+not_held = "[captured $url but could not hold the image: $error]"
+captured = "[captured $url ($bytes bytes); it is in front of you now]"
+
+[rest]
+description = "Ask the loop to wait before waking you again, instead of its usual interval. Takes effect when this wake ends. The loop allows up to an hour at a time and at most an hour of rest in any three; a longer ask is cut to what is allowed."
+args.minutes = "How many minutes to rest."
+not_a_number = "[not a number of minutes: $minutes]"
+error = "[could not ask to rest: $error]"
+asked = "[asked to rest $minutes minutes after this wake; the loop allows up to 60 at a time, 60 in any 3 hours]"

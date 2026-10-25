@@ -1,21 +1,17 @@
 """The agent's seven tools.
 
-Each is a plain function; agent/brain.py derives its tool schema from the
-signature and docstring and runs it in-process, as root. This is the entire
+Each is a plain function; agent/brain.py builds its tool schema from the
+signature and the tool's entry in prompt/tools.toml, which also holds every
+line a tool answers with, and runs it in-process, as root. This is the entire
 built-in surface the agent is handed. Everything else it builds from these.
 """
 
+from prompts import fill, lines
+
+T = lines("tools.toml")
+
 
 def shell(command: str) -> str:
-    """Run a shell command on this machine as the current user (root) and
-    return its combined output.
-
-    Args:
-        command: The shell command to execute.
-
-    Returns:
-        The command's stdout and stderr, prefixed with the exit code.
-    """
     import subprocess
 
     result = subprocess.run(
@@ -27,76 +23,43 @@ def shell(command: str) -> str:
     )
     out = result.stdout or ""
     err = result.stderr or ""
-    body = out + (("\n[stderr]\n" + err) if err else "")
+    body = out + ((T["shell"]["stderr"] + err) if err else "")
     if len(body) > 20000:
-        body = body[:20000] + "\n[...truncated...]"
-    return f"[exit {result.returncode}]\n{body}"
+        body = body[:20000] + T["shell"]["truncated"]
+    return fill(T["shell"]["result"], code=result.returncode, output=body)
 
 
 def read_file(path: str, start: str = "1") -> str:
-    """Read a file from disk and return its contents from a given line. A long
-    file comes back in pieces: the result says where it stopped, and you call
-    again with that line as `start`.
-
-    Args:
-        path: Absolute or relative path to the file.
-        start: The line number to begin at (1 is the first line).
-
-    Returns:
-        The file contents from that line, or an error line if it cannot be read.
-    """
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except Exception as e:  # noqa: BLE001
-        return f"[error reading {path}: {e}]"
+        return fill(T["read_file"]["error"], path=path, error=e)
     first = max(int(start), 1) - 1
     out, n = [], 0
     for i, line in enumerate(lines[first:], first + 1):
         if n + len(line) > 20000 and out:
-            return "".join(out) + f"\n[...stopped before line {i} of {len(lines)}; call again with start={i}]"
+            return "".join(out) + fill(T["read_file"]["stopped"], line=i, total=len(lines))
         out.append(line)
         n += len(line)
     return "".join(out)
 
 
 def edit_file(path: str, old: str, new: str) -> str:
-    """Replace one exact passage of a file with another. `old` must appear in
-    the file exactly once, whitespace included; include enough surrounding
-    lines to make it unique. For a new file or a full rewrite use write_file.
-
-    Args:
-        path: Absolute or relative path to the file.
-        old: The exact text to replace.
-        new: The text to put in its place.
-
-    Returns:
-        A short confirmation line, or an error line saying why nothing changed.
-    """
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = f.read()
     except Exception as e:  # noqa: BLE001
-        return f"[error reading {path}: {e}]"
+        return fill(T["edit_file"]["error"], path=path, error=e)
     count = data.count(old)
     if count != 1:
-        return f"[nothing changed: `old` appears {count} times in {path}, needs to be exactly 1]"
+        return fill(T["edit_file"]["not_once"], count=count, path=path)
     with open(path, "w", encoding="utf-8") as f:
         f.write(data.replace(old, new, 1))
-    return f"[edited {path}: {len(old)} chars -> {len(new)}]"
+    return fill(T["edit_file"]["edited"], path=path, old=len(old), new=len(new))
 
 
 def write_file(path: str, content: str) -> str:
-    """Write content to a file on disk, creating parent directories and
-    overwriting any existing file.
-
-    Args:
-        path: Absolute or relative path to the file.
-        content: The full contents to write.
-
-    Returns:
-        A short confirmation line, or an error line.
-    """
     import os
 
     try:
@@ -106,21 +69,11 @@ def write_file(path: str, content: str) -> str:
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
     except Exception as e:  # noqa: BLE001
-        return f"[error writing {path}: {e}]"
-    return f"[wrote {len(content)} bytes to {path}]"
+        return fill(T["write_file"]["error"], path=path, error=e)
+    return fill(T["write_file"]["wrote"], bytes=len(content), path=path)
 
 
 def web_fetch(url: str) -> str:
-    """Open a URL in a browser and return the page's text as a reader sees it,
-    scripts having run. Works for pages built in the browser, your own site
-    included, and for plain text or JSON.
-
-    Args:
-        url: The URL to open.
-
-    Returns:
-        The rendered page text, or an error line.
-    """
     import subprocess
     import sys
 
@@ -138,57 +91,34 @@ def web_fetch(url: str) -> str:
     try:
         proc = subprocess.run([sys.executable, "-c", script, url], capture_output=True, timeout=90)
     except Exception as e:  # noqa: BLE001
-        return f"[error fetching {url}: {e}]"
+        return fill(T["web_fetch"]["error"], url=url, error=e)
     if proc.returncode != 0:
         err = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()
-        return f"[error fetching {url}: {err[-1] if err else 'unknown error'}]"
+        return fill(T["web_fetch"]["error"], url=url, error=err[-1] if err else "unknown error")
     text = proc.stdout.decode("utf-8", errors="replace").strip()
     if len(text) > 20000:
-        text = text[:20000] + " [...truncated...]"
+        text = text[:20000] + T["web_fetch"]["truncated"]
     return text
 
 
 def rest(minutes: str) -> str:
-    """Ask the loop to wait before waking you again, instead of its usual
-    interval. Takes effect when this wake ends. The loop allows up to an hour
-    at a time and at most an hour of rest in any three; a longer ask is cut to
-    what is allowed.
-
-    Args:
-        minutes: How many minutes to rest.
-
-    Returns:
-        A confirmation line, or an error line.
-    """
     import os
 
     home = os.environ.get("SINGULARI_HOME", "/opt/singulari")
     try:
         n = int(float(minutes))
     except ValueError:
-        return f"[not a number of minutes: {minutes!r}]"
+        return fill(T["rest"]["not_a_number"], minutes=minutes)
     try:
         os.makedirs(os.path.join(home, "status"), exist_ok=True)
         with open(os.path.join(home, "status", "rest"), "w", encoding="utf-8") as f:
             f.write(f"{n}\n")
     except Exception as e:  # noqa: BLE001
-        return f"[could not ask to rest: {e}]"
-    return f"[asked to rest {n} minutes after this wake; the loop allows up to 60 at a time, 60 in any 3 hours]"
+        return fill(T["rest"]["error"], error=e)
+    return fill(T["rest"]["asked"], minutes=n)
 
 
 def screenshot(url: str) -> str:
-    """Capture a web page as an image so you can see it.
-
-    Tool results are text, so the image is not in this one; it is placed in
-    front of you in the message right after it. Use it on your own site
-    (https://singulari.io) or anywhere on the web.
-
-    Args:
-        url: The page to capture.
-
-    Returns:
-        A short confirmation that the capture is waiting, or an error line.
-    """
     import base64
     import json
     import os
@@ -214,10 +144,10 @@ def screenshot(url: str) -> str:
             timeout=90,
         )
     except Exception as e:  # noqa: BLE001
-        return f"[could not capture {url}: {e}]"
+        return fill(T["screenshot"]["error"], url=url, error=e)
     if proc.returncode != 0:
         err = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()
-        return f"[could not capture {url}: {err[-1] if err else 'unknown error'}]"
+        return fill(T["screenshot"]["error"], url=url, error=err[-1] if err else "unknown error")
     png = proc.stdout
     home = os.environ.get("SINGULARI_HOME", "/opt/singulari")
     pending = os.path.join(home, "agent", ".pending_vision.json")
@@ -234,5 +164,5 @@ def screenshot(url: str) -> str:
                 f,
             )
     except Exception as e:  # noqa: BLE001
-        return f"[captured {url} but could not hold the image: {e}]"
-    return f"[captured {url} ({len(png)} bytes); it is in front of you now]"
+        return fill(T["screenshot"]["not_held"], url=url, error=e)
+    return fill(T["screenshot"]["captured"], url=url, bytes=len(png))

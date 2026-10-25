@@ -105,7 +105,7 @@ def main():
     check("tools offered", [t["function"]["name"] for t in first["tools"]] == ["shell", "read_file", "edit_file", "write_file", "web_fetch", "screenshot", "rest"])
     check("optional start is not required", first["tools"][1]["function"]["parameters"]["required"] == ["path"])
     check("shell schema from docstring", first["tools"][0]["function"]["parameters"]["properties"]["command"]["description"].startswith("The shell command"))
-    check("self.md in system prompt", "I have just woken for the first time." in first["messages"][0]["content"])
+    check("self.md in the wake message, not the system prompt", "I have just woken for the first time." in first["messages"][-1]["content"] and "I have just woken" not in first["messages"][0]["content"])
     check("second step carries the tool result", REQUESTS[1]["messages"][-1]["role"] == "tool")
     shown = REQUESTS[2]["messages"][-1]
     check("capture shown in the same wake", shown["role"] == "user" and shown.get("images") == ["AAAA"] and "http://x" in shown["content"], json.dumps(shown)[:200])
@@ -131,7 +131,18 @@ def main():
     check("second wake replays the whole first", replay == ["system", "user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant", "user"], str(replay))
     check("second wake is counted", "this is wake 2," in replayed[-1]["content"])
     check("replayed tool call intact", replayed[2]["tool_calls"][0]["function"]["name"] == "shell")
-    check("big results shortened in replay", all(len(m["content"]) < 1600 and m["content"].endswith("[...shortened in replay...]") for m in replayed[8:12]))
+    check("big results replayed in full", all(len(m["content"]) > 19000 for m in replayed[8:12]))
+    check("each wake's prompt extends the last", REQUESTS[6]["messages"][: len(REQUESTS[5]["messages"])] == REQUESTS[5]["messages"])
+
+    sys.path.insert(0, HERE)
+    os.environ["SINGULARI_HOME"] = home
+    import brain
+
+    brain.REPLAY_MAX_CHARS, brain.REPLAY_KEEP_CHARS = 60_000, 30_000
+    os.remove(brain.REPLAY_START)
+    kept = brain.recent_history()
+    check("over the cap, the replay is cut to the newest part, on a user message", kept[0]["role"] == "user" and 0 < len(kept) < sum(1 for _ in open(brain.HISTORY)))
+    check("and stays put until it is over the cap again", brain.recent_history() == kept)
     print("brain OK")
 
 

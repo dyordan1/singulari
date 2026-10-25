@@ -17,6 +17,9 @@ systemctl enable --now docker
 
 log "2/3 ollama + the model"
 command -v ollama >/dev/null || retry sh -c 'curl -fsSL https://ollama.com/install.sh | sh'
+mkdir -p /etc/systemd/system/ollama.service.d
+printf '[Service]\nEnvironment=LLAMA_ARG_CACHE_RAM=32768\n' > /etc/systemd/system/ollama.service.d/cache.conf
+systemctl daemon-reload && systemctl restart ollama
 retry ollama pull qwen3.8:27b
 
 log "3/3 the repo and the agent's eyes"

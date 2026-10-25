@@ -1,0 +1,29 @@
+# The lines that frame a wake or a day for the summary prompts in this folder.
+
+[wake]
+previous = "Your log lines for the wakes before this one:"
+previous_line = "#$wake $line"
+header = "The new wake, #$wake, as it went:"
+thinking = "(thinking) $text"
+call = "$tool $args -> $result"
+tool = "(tool) $call"
+said = "(said at the end) $text"
+record = "What actually happened this wake (the record; thinking and words above may claim more):"
+step = "$n. $call"
+nothing = "Nothing. No command ran, no file was read or written, no page was fetched."
+written_call = "The reply contains a command written out as text. It did not run."
+files = "Files changed on disk: $paths"
+label = "Your status label: $label"
+rested = "Then rested on purpose for $minutes minutes."
+error = "The wake ended in an error: $error"
+too_long = "A first try was too long: $line\nToo long. Say it again in about 8 words."
+
+[day]
+entry = "Daily entry for $day:\n$text"
+log = "Log entries for $day (UTC):\n$lines"
+line = "$time #$wake $line"
+event = "$time $line"
+outside_one = "the source changed from outside (1 file)"
+outside_many = "the source changed from outside ($count files)"
+loop_stopped = "the loop stopped (exit $code)"
+poke_failed = "the loop came round but the wake failed to start"

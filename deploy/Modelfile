@@ -1,4 +1,5 @@
-# The brain: qwen3.8:27b with a prompt template of our own. Ollama's built-in
+# The brain: qwen3.8:27b with a prompt template of our own, prompt/chat.gotmpl,
+# which deploy/makemodel.sh appends as TEMPLATE. Ollama's built-in
 # renderer for this model appends a reminder to the tools block that ends "do
 # not tell the user about function calls"; there is no user here, and a model
 # told of one narrates its own past as someone else's. This is the same prompt
@@ -19,79 +20,3 @@ PARAMETER min_p 0
 PARAMETER presence_penalty 0
 PARAMETER repeat_penalty 1
 PARAMETER temperature 1
-TEMPLATE """
-{{- if or .System .Tools }}<|im_start|>system
-{{ if .Tools }}# Tools
-
-You have access to the following functions:
-
-<tools>
-{{- range .Tools }}
-{{ . }}
-{{- end }}
-</tools>
-
-If you choose to call a function ONLY reply in the following format with NO suffix:
-
-<tool_call>
-<function=example_function_name>
-<parameter=example_parameter_1>
-value_1
-</parameter>
-<parameter=example_parameter_2>
-This is the value for the second parameter
-that can span
-multiple lines
-</parameter>
-</function>
-</tool_call>
-
-<IMPORTANT>
-Reminder:
-- Function calls MUST follow the specified format: an inner <function=...></function> block must be nested within <tool_call></tool_call> XML tags
-- Required parameters MUST be specified
-- You may provide optional reasoning for your function call in natural language BEFORE the function call, but NOT after
-</IMPORTANT>
-{{- if .System }}
-
-{{ end }}
-{{- end }}
-{{- .System }}<|im_end|>
-{{ end }}
-{{- range $i, $_ := .Messages }}
-{{- $last := eq (len (slice $.Messages $i)) 1 -}}
-{{- if eq .Role "user" }}<|im_start|>user
-{{ .Content }}<|im_end|>
-{{ else if eq .Role "assistant" }}<|im_start|>assistant
-<think>
-{{ .Thinking }}
-</think>
-
-{{ if .Content }}{{ .Content }}{{ if .ToolCalls }}
-
-{{ end }}{{ end }}
-{{- range $j, $call := .ToolCalls }}{{ if $j }}
-{{ end }}<tool_call>
-<function={{ $call.Function.Name }}>
-{{- range $k, $v := $call.Function.Arguments }}
-<parameter={{ $k }}>
-{{ $v }}
-</parameter>
-{{- end }}
-</function>
-</tool_call>
-{{- end }}{{ if not $last }}<|im_end|>
-{{ end }}
-{{- else if eq .Role "tool" }}<|im_start|>user
-<tool_response>
-{{ .Content }}
-</tool_response><|im_end|>
-{{ end }}
-{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
-{{ if and $.IsThinkSet (not $.Think) }}<think>
-
-</think>
-
-{{ else }}<think>
-{{ end }}{{ end }}
-{{- end }}"""

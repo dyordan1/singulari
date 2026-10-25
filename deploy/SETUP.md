@@ -28,6 +28,17 @@ curl -fsSL https://ollama.com/install.sh | sh      # installs + enables ollama.s
 ollama pull qwen3.8:27b                             # the brain (~18GB on disk)
 ```
 
+Give the model server room to keep earlier prompts' caches in RAM. Each wake's
+prompt extends the last one (`agent/brain.py` explains), and a cache that fits
+is what lets a wake compute only its new part; at the default 8 GiB, a prompt
+past about 90k tokens no longer fits:
+
+```bash
+mkdir -p /etc/systemd/system/ollama.service.d
+printf '[Service]\nEnvironment=LLAMA_ARG_CACHE_RAM=32768\n' > /etc/systemd/system/ollama.service.d/cache.conf
+systemctl daemon-reload && systemctl restart ollama
+```
+
 Then, once the repo is cloned (step 3), build the model the loop talks to:
 the same weights behind a prompt template of our own, because Ollama's built-in
 renderer tells the model not to "tell the user" about its tools
