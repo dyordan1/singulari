@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Auto } from "./Auto.tsx";
 import { Explainer } from "./Explainer.tsx";
+import { Prose } from "./Status.tsx";
 import { DIM, FAINT, RULE, WHITE, ago } from "./theme.ts";
 
 interface Entry {
@@ -129,9 +130,7 @@ export function Home() {
           <div style={{ color: FAINT, fontSize: "0.8rem", marginBottom: 8 }}>
             {e.name} · {new Date(e.mtime).toISOString().replace("T", " ").slice(0, 16)}
           </div>
-          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, fontFamily: "inherit" }}>
-            {e.content}
-          </pre>
+          <Prose text={e.content} color={WHITE} />
         </article>
       ))}
     </>
