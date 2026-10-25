@@ -162,11 +162,18 @@ def load_index():
         if "head" not in index:
             index["files_changed_since_birth"] = files_changed_by_agent()
             index["head"] = None
+        if "generated_tokens" not in index:
+            index.pop("tokens", None)
+            index["generated_tokens"] = sum(
+                (b.get("usage_statistics") or {}).get("completion_tokens") or 0
+                for day in index["days"]
+                for b in read_jsonl(os.path.join(TRACE_DIR, f"{day}.jsonl"))
+            )
         return index
     return {
         "born": None, "wakes": 0, "last": None, "dur_total_s": 0.0, "mean_dur_s": 0.0,
         "interval": {"declared": None, "mean_gap_s": None}, "gap_total_s": 0.0, "gaps": 0,
-        "tools": {}, "tokens": 0, "rests": 0, "diary_entries": 0, "files_changed_since_birth": [], "days": [], "exits": [],
+        "tools": {}, "generated_tokens": 0, "rests": 0, "diary_entries": 0, "files_changed_since_birth": [], "days": [], "exits": [],
         "head": None,
     }
 
@@ -194,7 +201,7 @@ def beat_entry(index, sleep_s, interval):
         for m in wake.get("messages", []):
             if m["type"] == "tool_call_message":
                 index["tools"][m["tool"]] = index["tools"].get(m["tool"], 0) + 1
-        index["tokens"] += (wake.get("usage_statistics") or {}).get("total_tokens") or 0
+        index["generated_tokens"] += (wake.get("usage_statistics") or {}).get("completion_tokens") or 0
     else:
         entry["event"] = "poke-failed"
     if index["last"]:

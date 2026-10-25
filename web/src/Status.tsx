@@ -12,7 +12,7 @@ interface Index {
   mean_dur_s: number;
   interval: { declared: number | null; mean_gap_s: number | null };
   tools: Record<string, number>;
-  tokens: number;
+  generated_tokens: number;
   rests: number;
   diary_entries: number;
   files_changed_since_birth: string[];
@@ -114,7 +114,7 @@ export function Status() {
     ["mean turn", fmtDur(index.mean_dur_s)],
     ["heartbeat", `${fmtDur(index.interval.declared)} set · ${fmtDur(index.interval.mean_gap_s)} measured`],
     ["rests taken", String(index.rests)],
-    ["tokens", index.tokens.toLocaleString()],
+    ["tokens generated", index.generated_tokens.toLocaleString()],
     ["diary entries", String(index.diary_entries)],
     ["files it changed", String(index.files_changed_since_birth.length)],
     ["loop exits", lastExit ? `${index.exits.length} · last code ${lastExit.code}` : "0"],
