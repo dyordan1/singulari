@@ -10,5 +10,6 @@ agent/.pending_vision.json
 .venv/
 .trace/
 agent/.last_wake.json
+agent/.replay.json
 status/*
 !status/.gitkeep
