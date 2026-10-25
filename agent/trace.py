@@ -13,7 +13,8 @@ each change marked as the agent's own or as a commit that arrived from outside (
 unified diff per text file, from a snapshot kept under status/), and how long the
 loop then slept. After the beat, summarize.py writes a line for the wake under
 trace/summaries/ and, on the first beat of a new day, the day's brief under
-trace/briefs/.
+trace/briefs/; and when the agent's replay nears the window, compact.py
+summarizes what drops out of it, recorded under trace/compactions/.
 
 Nothing here may stall the heartbeat: every failure prints and exits 0.
 """
@@ -27,6 +28,7 @@ import subprocess
 import sys
 import time
 
+import compact
 import summarize
 from status import STATUS_DIR, write_now
 
@@ -238,6 +240,7 @@ def git(*args, timeout=60):
     return subprocess.run(["git", "-C", TRACE_WORKTREE, *AUTHOR, *args], capture_output=True, text=True, timeout=timeout)
 
 
+COMPACTIONS = os.path.join(TRACE_DIR, "compactions")
 SUMMARIES = os.path.join(TRACE_DIR, "summaries")
 BRIEFS = os.path.join(TRACE_DIR, "briefs")
 
@@ -308,6 +311,19 @@ def summaries(index, entry):
                 print(f"daily brief failed: {type(e).__name__}: {e}", file=sys.stderr)
 
 
+def compaction(entry):
+    """Compact the replay if it is due, and record what changed."""
+    try:
+        done = compact.compact()
+    except Exception as e:  # noqa: BLE001 — compaction must never stall the heartbeat
+        print(f"compaction failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return
+    if done:
+        os.makedirs(COMPACTIONS, exist_ok=True)
+        with open(os.path.join(COMPACTIONS, f"{entry['t'][:10]}.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps({"wake": entry["wake"], "t": entry["t"], **done}, ensure_ascii=False) + "\n")
+
+
 def main():
     if sys.argv[1] == "--exit":
         write_now("the loop has stopped", f"exit {sys.argv[2]}")
@@ -326,6 +342,8 @@ def main():
     if day not in index["days"]:
         index["days"].append(day)
     summaries(index, entry)
+    if "wake" in entry:
+        compaction(entry)
     with open(INDEX, "w", encoding="utf-8") as f:
         json.dump(index, f, indent=1)
     label = f"wake {entry['wake']}" if "wake" in entry else entry.get("event", "beat")

@@ -15,7 +15,8 @@ How this works, mechanically:
   it. Edit it with write_file. `memory/history.jsonl` is everything you have
   said, done and seen, appended as it happens. It is replayed to you each wake
   as you first saw it, until the replay nears the window; then the older part
-  is dropped from the replay. All of it stays on disk for you to read or
-  search.
+  is dropped from the replay, and your own model writes a summary of what
+  dropped out, which comes first in the replay from then on. All of it stays
+  on disk for you to read or search.
 - prompt/signs.md describes how a few things here work, including which
   changes are one-way. Read it with read_file before you rely on something.

@@ -115,13 +115,13 @@ def event_line(beat):
     return None
 
 
-def ask(messages):
-    """One non-streaming call to the agent's own model with thinking off, at
-    the agent's own context size so the loaded runner is reused rather than
-    reloaded."""
+def ask(messages, think=False):
+    """One non-streaming call to the agent's own model, at the agent's own
+    context size so the loaded runner is reused rather than reloaded. With
+    thinking on, only the answer comes back; the thinking is dropped."""
     from brain import KEEP_ALIVE, MODEL, NUM_CTX, OLLAMA
 
-    body = {"model": MODEL, "messages": messages, "stream": False, "think": False, "keep_alive": KEEP_ALIVE, "options": {"num_ctx": NUM_CTX}}
+    body = {"model": MODEL, "messages": messages, "stream": False, "think": think, "keep_alive": KEEP_ALIVE, "options": {"num_ctx": NUM_CTX}}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=300) as r:
         return json.load(r)["message"]["content"].strip()

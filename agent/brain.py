@@ -6,7 +6,8 @@ The agent is a model, five tools, and a folder of files that is its memory:
 - memory/self.md        what it chooses to keep in front of itself, every wake
 - memory/history.jsonl  every message it has sent, received or seen, appended
                         as it happens; replayed from a start that moves only
-                        when the replay nears the window
+                        when the replay nears the window, and then what
+                        dropped out is summarized (agent/compact.py)
 
 Every word the model is shown comes from prompt/ (agent/prompts.py). The system
 prompt is situation.md and mechanics.md. A wake sends one message, wake.md,
@@ -46,7 +47,7 @@ PENDING_VISION = os.path.join(HOME, "agent", ".pending_vision.json")
 LABEL = os.path.join(STATUS_DIR, "now.txt")
 CLEARED_LABEL = os.path.join(STATUS_DIR, ".cleared_label")
 LAST_WAKE = os.path.join(HOME, "agent", ".last_wake.json")
-REPLAY_START = os.path.join(HOME, "agent", ".replay_start")
+REPLAY = os.path.join(HOME, "agent", ".replay.json")
 
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 MODEL = "singulari"
@@ -116,18 +117,15 @@ def remember(msg):
         f.write(json.dumps({"t": time.time(), **msg}) + "\n")
 
 
-def recent_history():
-    """The history from the replay's start, as first sent. Past REPLAY_MAX_CHARS
-    (or with no start yet) the start moves up to keep the newest
-    REPLAY_KEEP_CHARS, cut on a user message so no tool result appears without
-    its call; that wake re-reads everything, and the replay grows again."""
+def history_entries(start=None):
+    """[(byte offset, message)] from `start`, or, with none, from far enough
+    back to cover a full replay."""
     if not os.path.exists(HISTORY):
         return []
     size = os.path.getsize(HISTORY)
-    start = int(read(REPLAY_START)) if os.path.exists(REPLAY_START) else -1
     entries = []
     with open(HISTORY, "rb") as f:
-        if not 0 <= start <= size:
+        if start is None or not 0 <= start <= size:
             f.seek(max(0, size - 4 * REPLAY_MAX_CHARS))
             if f.tell():
                 f.readline()
@@ -140,18 +138,39 @@ def recent_history():
                 m.pop("t", None)
                 entries.append((offset, m))
             offset += len(line)
-    lengths = [len(json.dumps(m)) for _, m in entries]
-    if start != (entries[0][0] if entries else size) or sum(lengths) > REPLAY_MAX_CHARS:
-        i, kept = len(entries), 0
-        while i > 0 and kept <= REPLAY_KEEP_CHARS:
-            i -= 1
-            kept += lengths[i]
-        while i < len(entries) and entries[i][1]["role"] != "user":
-            i += 1
-        entries = entries[i:]
-        with open(REPLAY_START, "w", encoding="utf-8") as f:
-            f.write(str(entries[0][0] if entries else size))
-    return [m for _, m in entries]
+    return entries
+
+
+def cut_index(entries):
+    """Where a replay is cut to keep its newest REPLAY_KEEP_CHARS: on a user
+    message, so no tool result appears without its call."""
+    i, kept = len(entries), 0
+    while i > 0 and kept <= REPLAY_KEEP_CHARS:
+        i -= 1
+        kept += len(json.dumps(entries[i][1]))
+    while i < len(entries) and entries[i][1]["role"] != "user":
+        i += 1
+    return i
+
+
+def replay_state():
+    return json.loads(read(REPLAY)) if os.path.exists(REPLAY) else None
+
+
+def recent_history():
+    """The replay: the summary of what dropped out, then the history from the
+    replay's start, as first sent. agent/compact.py moves the start; with none
+    yet, the newest REPLAY_KEEP_CHARS stand alone."""
+    state = replay_state()
+    if state is None:
+        entries = history_entries()
+        entries = entries[cut_index(entries):]
+    else:
+        entries = history_entries(state["start"])
+    msgs = [m for _, m in entries]
+    if state and state.get("summary"):
+        msgs.insert(0, {"role": "user", "content": prompts.text("compacted.md", summary=state["summary"])})
+    return msgs
 
 
 def show_capture(messages):

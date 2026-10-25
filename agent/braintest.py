@@ -138,11 +138,15 @@ def main():
     os.environ["SINGULARI_HOME"] = home
     import brain
 
-    brain.REPLAY_MAX_CHARS, brain.REPLAY_KEEP_CHARS = 60_000, 30_000
-    os.remove(brain.REPLAY_START)
+    brain.REPLAY_KEEP_CHARS = 30_000
     kept = brain.recent_history()
-    check("over the cap, the replay is cut to the newest part, on a user message", kept[0]["role"] == "user" and 0 < len(kept) < sum(1 for _ in open(brain.HISTORY)))
-    check("and stays put until it is over the cap again", brain.recent_history() == kept)
+    check("with no compaction yet, the replay is the newest part, cut on a user message", kept[0]["role"] == "user" and 0 < len(kept) < sum(1 for _ in open(brain.HISTORY)))
+    entries = brain.history_entries(0)
+    start = next(o for o, m in entries[3:] if m["role"] == "user")
+    with open(brain.REPLAY, "w") as f:
+        json.dump({"start": start, "summary": "EARLIER SUMMARY"}, f)
+    replay = brain.recent_history()
+    check("after a compaction, the summary comes first, then the history from the start", "EARLIER SUMMARY" in replay[0]["content"] and replay[1:] == [m for o, m in entries if o >= start])
     print("brain OK")
 
 
