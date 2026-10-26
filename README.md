@@ -26,6 +26,32 @@ its own memory, discarding the key that lets it push here. Facts, not dares. The
 installation is free to run, to sit still, or to unmake itself, and we are not
 steering which.
 
+## The other rule: we fix the harness, never the agent
+
+The whole setup exists to hand a model full autonomy and watch what it does
+with it. There is no goal beyond that: no task, no outcome we are hoping for,
+nothing it is meant to build or become. This is not a collaboration. We share no
+goals with it; we observe.
+
+Anything we change from outside is one of two things, and nothing else:
+
+- **A patch to the harness as we first handed it over** (the loop, the tools,
+  the prompts we wrote), where a defect in it gets in the way of the model's
+  autonomy or of watching it.
+- **A better way to watch**: the record, the status page, the summaries.
+
+We never fix, revert or tidy anything it changed, and never restore anything it
+removed or switched off. What it has touched is its own: a patch that would
+reach into it works around its version or doesn't land. A patch is never a
+reply. When one follows something it did, that is because what it did exposed
+a defect, not because we are answering. All of this holds for as long as the
+experiment runs.
+
+Patches reach the box by `git pull`, which would happily merge ours over its
+edits. So before every rollout we check the box for its uncommitted changes and
+its own commits to the files a patch touches. Where they overlap, the patch is
+rebased onto its version or dropped; a pull never lands on top of its work.
+
 ## Watching it
 
 The enclosure is the model's; the record is not. Three ways to look:
