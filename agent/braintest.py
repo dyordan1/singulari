@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -147,6 +149,22 @@ def main():
         json.dump({"start": start, "summary": "EARLIER SUMMARY"}, f)
     replay = brain.recent_history()
     check("after a compaction, the summary comes first, then the history from the start", "EARLIER SUMMARY" in replay[0]["content"] and replay[1:] == [m for o, m in entries if o >= start])
+
+    rest = brain.load_tools()["rest"]
+    log = os.path.join(home, "status", "rest.log")
+
+    def logged(*rests):
+        with open(log, "w") as f:
+            f.writelines(f"{datetime.fromtimestamp(time.time() - ago).astimezone().isoformat(timespec='seconds')}\t{secs}\n" for ago, secs in rests)
+
+    check("a rest within the limits is granted as asked", rest("20") == "[the loop will wait 20 minutes after this wake]")
+    check("a rest over an hour is cut to one", "wait 60 minutes after this wake, not 90: one rest is at most 60" in rest("90"))
+    logged((3600, 2700))
+    frees = time.strftime("%H:%M", time.gmtime(time.time() - 3600 + 3 * 3600))
+    check("a rest over the budget says what is left and when it frees", f"wait 15 minutes after this wake, not 45, or its usual interval if that is longer: 45 of the 60 minutes" in rest("45") and f"at {frees} UTC" in rest("45"))
+    logged((3600, 2700), (600, 900))
+    check("no budget left: the tool says it will not rest", rest("45").startswith("[the loop will not rest you;"))
+    check("the request is still left for the loop", open(os.path.join(home, "status", "rest")).read() == "45\n")
 
     repo = tempfile.mkdtemp(prefix="singulari-outside-")
 

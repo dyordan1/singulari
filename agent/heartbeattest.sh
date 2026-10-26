@@ -8,7 +8,7 @@ T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/agent"
 cp "$(dirname "$0")/heartbeat.sh" "$T/agent/heartbeat.sh"
-sed -i.bak 's/^INTERVAL=120$/INTERVAL=1/' "$T/agent/heartbeat.sh" && rm "$T/agent/heartbeat.sh.bak"
+sed -i.bak 's/^INTERVAL=[0-9]*$/INTERVAL=1/' "$T/agent/heartbeat.sh" && rm "$T/agent/heartbeat.sh.bak"
 
 cat > "$T/stub" <<'EOF'
 #!/usr/bin/env bash

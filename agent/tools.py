@@ -103,6 +103,9 @@ def web_fetch(url: str) -> str:
 
 def rest(minutes: str) -> str:
     import os
+    import time
+
+    import rest as limits
 
     home = os.environ.get("SINGULARI_HOME", "/opt/singulari")
     try:
@@ -115,7 +118,18 @@ def rest(minutes: str) -> str:
             f.write(f"{n}\n")
     except Exception as e:  # noqa: BLE001
         return fill(T["rest"]["error"], error=e)
-    return fill(T["rest"]["asked"], minutes=n)
+    now = time.time()
+    granted = int(limits.allowed(n * 60, now) // 60)
+    taken = limits.rests_in_window(now)
+    budget = {"budget": limits.MAX_IN_WINDOW // 60, "hours": limits.WINDOW // 3600, "used": round(sum(s for _, s in taken) / 60),
+              "frees": time.strftime("%H:%M", time.gmtime(min((t for t, _ in taken), default=now) + limits.WINDOW))}
+    if granted >= n:
+        return fill(T["rest"]["granted"], minutes=n)
+    if granted == limits.MAX_ONE_REST // 60:
+        return fill(T["rest"]["one_rest"], minutes=granted, asked=n)
+    if granted:
+        return fill(T["rest"]["cut"], minutes=granted, asked=n, **budget)
+    return fill(T["rest"]["none"], asked=n, **budget)
 
 
 def screenshot(url: str) -> str:

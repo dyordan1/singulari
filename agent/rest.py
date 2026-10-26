@@ -33,10 +33,11 @@ def requested_seconds() -> float:
     return float(text) * 60
 
 
-def used_in_window(now: float) -> float:
+def rests_in_window(now: float) -> list[tuple[float, float]]:
+    """(start, seconds) of each logged rest that still counts at `now`."""
     if not os.path.exists(REST_LOG):
-        return 0.0
-    used = 0.0
+        return []
+    rests = []
     with open(REST_LOG, encoding="utf-8") as f:
         for line in f:
             try:
@@ -45,8 +46,13 @@ def used_in_window(now: float) -> float:
             except ValueError:
                 continue
             if now - started < WINDOW:
-                used += float(secs)
-    return used
+                rests.append((started, float(secs)))
+    return rests
+
+
+def allowed(wanted: float, now: float) -> float:
+    """Seconds of a `wanted`-second rest the limits allow at `now`."""
+    return max(0.0, min(wanted, MAX_ONE_REST, MAX_IN_WINDOW - sum(s for _, s in rests_in_window(now))))
 
 
 def main():
@@ -59,9 +65,9 @@ def main():
         except (ValueError, OSError) as e:
             print(f"rest request ignored: {e}", file=sys.stderr)
             wanted = 0
-        allowed = min(wanted, MAX_ONE_REST, MAX_IN_WINDOW - used_in_window(now))
-        if allowed > interval:
-            sleep_s = int(allowed)
+        granted = allowed(wanted, now)
+        if granted > interval:
+            sleep_s = int(granted)
             os.makedirs(STATUS_DIR, exist_ok=True)
             with open(REST_LOG, "a", encoding="utf-8") as f:
                 f.write(f"{datetime.fromtimestamp(now).astimezone().isoformat(timespec='seconds')}\t{sleep_s}\n")
