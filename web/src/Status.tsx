@@ -69,6 +69,7 @@ export function Status() {
   const [index, setIndex] = useState<Index | null | undefined>(undefined);
   const [day, setDay] = useState<string | null>(null);
   const [beats, setBeats] = useState<Beat[] | null>(null);
+  const [lines, setLines] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
     fetch(`${RAW}index.json`, { cache: "no-cache" })
@@ -94,6 +95,20 @@ export function Status() {
             .reverse(),
         ))
       .catch(() => setBeats([]));
+    setLines(new Map());
+    fetch(`${RAW}summaries/${day}.jsonl`, { cache: "no-cache" })
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((text) =>
+        setLines(
+          new Map(
+            text
+              .split("\n")
+              .filter(Boolean)
+              .map((l) => JSON.parse(l) as { wake: number; summary: string })
+              .map((s) => [s.wake, s.summary]),
+          ),
+        ))
+      .catch(() => setLines(new Map()));
   }, [day]);
 
   if (index === undefined) return <p style={{ color: DIM }}>…</p>;
@@ -177,7 +192,7 @@ export function Status() {
 
       {beats === null && <p style={{ color: DIM }}>…</p>}
       {beats?.length === 0 && <p style={{ color: DIM }}>(nothing recorded for this day)</p>}
-      {beats?.map((b, i) => <BeatView key={`${b.t}-${i}`} beat={b} />)}
+      {beats?.map((b, i) => <BeatView key={`${b.t}-${i}`} beat={b} line={b.wake ? lines.get(b.wake) : undefined} />)}
     </>
   );
 }
@@ -191,7 +206,7 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-function BeatView({ beat }: { beat: Beat }) {
+function BeatView({ beat, line }: { beat: Beat; line?: string }) {
   const time = stamp(beat.t).slice(11);
   if (beat.event) {
     const label =
@@ -209,7 +224,6 @@ function BeatView({ beat }: { beat: Beat }) {
     );
   }
   const calls = beat.messages?.filter((m) => m.type === "tool_call_message") ?? [];
-  const first = beat.messages?.find((m) => m.type === "reasoning_message" || m.type === "assistant_message")?.text ?? "";
   return (
     <details style={{ marginBottom: "1rem" }}>
       <summary style={{ cursor: "pointer", color: INK, fontSize: "0.85rem" }}>
@@ -221,7 +235,7 @@ function BeatView({ beat }: { beat: Beat }) {
           <span style={{ color: FAINT }}>{` · ${outside(beat).length} file${outside(beat).length === 1 ? "" : "s"} arrived from outside`}</span>
         )}
         {beat.error && " · error"}
-        <span style={{ color: DIM }}> {first.slice(0, 90)}</span>
+        {line && <span style={{ color: DIM }}> {line}</span>}
         {beat.label && <span style={{ color: WHITE }}> · “{beat.label}”</span>}
       </summary>
       <div style={{ paddingLeft: 16, borderLeft: `1px solid ${RULE}`, marginTop: 8, fontSize: "0.85rem" }}>

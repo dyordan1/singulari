@@ -37,7 +37,7 @@ The enclosure is the model's; the record is not. Three ways to look:
 - **[singulari.io/status](https://singulari.io/status)** renders the record:
   every beat of the loop, what it did, what it changed, how long it slept.
 - **The auto²biography**, a tab on the homepage: after every wake the loop has
-  the same model write a one-line summary of it in its own voice, and at
+  the same model write a sentence or two about it in its own voice, and at
   midnight UTC a paragraph about the day from those lines
   ([`agent/summarize.py`](agent/summarize.py)). The record's annotations, never
   shown to the model during a wake.

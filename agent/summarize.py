@@ -17,7 +17,7 @@ WRITTEN_CALL = re.compile(r"<function|<tool_call|\{\s*\"name\"\s*:\s*\"\w+\"\s*,
 
 WAKE = lines("summary/input.toml")["wake"]
 DAY = lines("summary/input.toml")["day"]
-MAX_WORDS = 14
+MAX_WORDS = 40
 PREVIOUS_WAKES = 5
 PREVIOUS_DAYS = 5
 RESULT_CHARS = 160

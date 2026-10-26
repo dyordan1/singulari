@@ -71,14 +71,14 @@ record.summaries(index, beat(1, "2026-01-01T10:00:00Z"))
 check("a wake gets its line", [l["summary"] for l in lines("2026-01-01")] == ["Listed the directory"])
 check("thinking off, at the agent's context size", REQUESTS[-1]["think"] is False and REQUESTS[-1]["options"]["num_ctx"] == 262144 and REQUESTS[-1]["keep_alive"] == -1)
 
-REPLIES[:] = [" ".join(["word"] * 20), "Listed it again"]
+REPLIES[:] = [" ".join(["word"] * 50), "Listed it again"]
 record.summaries(index, beat(2, "2026-01-01T10:06:00Z"))
 check("over the cap, asked once more", lines("2026-01-01")[-1]["summary"] == "Listed it again")
 retry = REQUESTS[-1]["messages"]
 check("the retry is one fresh request quoting the long line", len(retry) == 2 and "A first try was too long" in retry[1]["content"])
 check("the retry sees the earlier line", "#1 Listed the directory" in retry[1]["content"])
 
-REPLIES[:] = [" ".join(["ramble"] * 40), " ".join(["ramble"] * 40)]
+REPLIES[:] = [" ".join(["ramble"] * 100), " ".join(["ramble"] * 100)]
 record.summaries(index, beat(3, "2026-01-01T10:12:00Z"))
 check("a runaway answer is dropped", len(lines("2026-01-01")) == 2)
 
