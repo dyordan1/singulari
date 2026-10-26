@@ -118,6 +118,7 @@ def main():
     history = [json.loads(line) for line in open(os.path.join(home, "memory", "history.jsonl"))]
     check("history has the whole wake", [m["role"] for m in history] == ["user", "assistant", "tool", "assistant", "tool", "user", "assistant"] + ["tool"] * 4 + ["assistant"])
     check("image not kept in history", "images" not in history[5])
+    check("history records the wake message without self.md", "What you have kept" not in history[0]["content"] and "this is wake 1," in history[0]["content"])
     check("big tool results kept in full in history", all(len(m["content"]) > 19000 for m in history[7:11]))
 
     r = wake()
@@ -134,7 +135,13 @@ def main():
     check("second wake is counted", "this is wake 2," in replayed[-1]["content"])
     check("replayed tool call intact", replayed[2]["tool_calls"][0]["function"]["name"] == "shell")
     check("big results replayed in full", all(len(m["content"]) > 19000 for m in replayed[8:12]))
-    check("each wake's prompt extends the last", REQUESTS[6]["messages"][: len(REQUESTS[5]["messages"])] == REQUESTS[5]["messages"])
+    prev, nxt = REQUESTS[5]["messages"], REQUESTS[6]["messages"]
+    i = max(k for k, m in enumerate(prev) if "What you have kept" in m["content"])
+    check(
+        "each wake's prompt extends the last, but for self.md leaving the previous wake message",
+        nxt[:i] == prev[:i] and nxt[i]["content"] == prev[i]["content"].split("\n\nWhat you have kept")[0] and nxt[i + 1 : len(prev)] == prev[i + 1 :],
+    )
+    check("only the newest wake message carries self.md", [k for k, m in enumerate(nxt) if "What you have kept" in m["content"]] == [len(nxt) - 1])
 
     sys.path.insert(0, HERE)
     os.environ["SINGULARI_HOME"] = home

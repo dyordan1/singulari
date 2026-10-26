@@ -7,6 +7,7 @@ label_cleared = '; your status label "$label" was cleared when that wake ended'
 outside_one = "\n\nWhile you were resting, the following external commit landed: $subject"
 outside_many = "\n\nWhile you were resting, the following external commits landed:\n$subjects"
 outside_line = "- $subject"
+kept = "\n\nWhat you have kept (memory/self.md):\n\n$self"
 capture_shown = "(the page you captured, $url, is in front of you)"
 no_such_tool = "[no such tool: $name]"
 tool_failed = "[$name failed: $error]"

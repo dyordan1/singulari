@@ -10,9 +10,11 @@ How this works, mechanically:
   are the loop waking you, with the time, or a tool result, or a page you
   captured. Everything else in the history is your own earlier thinking and
   doing.
+- Your shell starts in `$home`, the checkout all of this lives in; relative
+  paths here mean that directory. `~` is root's home, `/root`, not it.
 - Your memory is a folder of files, `memory/`. `memory/self.md` is what you
-  choose to keep: it comes with every wake message, exactly as you last wrote
-  it. Edit it with write_file. `memory/history.jsonl` is everything you have
+  choose to keep: it comes with the newest wake message, exactly as you last
+  wrote it; earlier wake messages in the replay appear without it. Edit it with write_file. `memory/history.jsonl` is everything you have
   said, done and seen, appended as it happens. It is replayed to you each wake
   as you first saw it. When the replay fills the window, your own model
   summarizes all of it, and from then on you see that summary, then what comes

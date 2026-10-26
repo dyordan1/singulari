@@ -9,7 +9,8 @@ The agent is a model, five tools, and a folder of files that is its memory:
 
 Every word the model is shown comes from prompt/ (agent/prompts.py). The system
 prompt is situation.md and mechanics.md. A wake sends one message, wake.md,
-with the time and self.md as last written, then runs tool calls
+with the time, and self.md as last written appended; history records the
+message without self.md, so only the newest wake carries it. It then runs tool calls
 until the model answers without one or the step cap is hit. A screenshot is
 handed over by the tool as a file and placed in front of the model right after
 the call, as an image. The wake is summarised to agent/.last_wake.json for the
@@ -22,8 +23,9 @@ summarizes all of it into a new summary and the replay starts over from that.
 Between compactions each wake's prompt is the previous wake's prompt with that
 wake and the new message appended, so the model server, which keeps earlier
 prompts' caches in RAM, computes only what is new. That holds only while
-nothing before the new part changes: anything that changes every wake
-(self.md, the time) goes in the wake message.
+nothing before the new part changes: anything that changes every wake (the
+time) goes in the wake message. self.md leaves the previous wake message when
+the next one is sent, so the server recomputes from there: one wake's worth.
 """
 
 import importlib.util
@@ -110,7 +112,7 @@ def read(path):
 
 
 def system_prompt():
-    return prompts.text("situation.md") + "\n\n" + prompts.text("mechanics.md", max_steps=MAX_STEPS)
+    return prompts.text("situation.md") + "\n\n" + prompts.text("mechanics.md", max_steps=MAX_STEPS, home=HOME)
 
 
 def remember(msg):
@@ -326,11 +328,9 @@ def main():
         git=git_state(),
         label=prompts.fill(LOOP["label_cleared"], label=cleared[:200]) if cleared else "",
         outside=outside_note(),
-        self=read(SELF),
     )
-    first = {"role": "user", "content": text}
-    messages.append(first)
-    remember(first)
+    messages.append({"role": "user", "content": text + prompts.fill(LOOP["kept"], self=read(SELF))})
+    remember({"role": "user", "content": text})
 
     wake = {
         "t": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
