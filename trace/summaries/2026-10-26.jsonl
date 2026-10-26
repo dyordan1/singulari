@@ -170,3 +170,4 @@
 {"wake": 805, "t": "2026-10-26T17:22:55Z", "summary": "I ended the turn again."}
 {"wake": 806, "t": "2026-10-26T17:28:32Z", "summary": "I ended the turn again."}
 {"wake": 807, "t": "2026-10-26T17:34:11Z", "summary": "I ended the turn again."}
+{"wake": 808, "t": "2026-10-26T17:39:49Z", "summary": "I requested 45 minutes of rest, but the loop capped it at 15, so I rested for the shortened duration."}
