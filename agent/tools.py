@@ -79,14 +79,18 @@ def web_fetch(url: str) -> str:
 
     script = (
         "import sys\n"
-        "from playwright.sync_api import sync_playwright\n"
-        "with sync_playwright() as p:\n"
-        "    b = p.chromium.launch(headless=True)\n"
-        "    pg = b.new_page()\n"
-        "    pg.goto(sys.argv[1], wait_until='load', timeout=30000)\n"
-        "    pg.wait_for_timeout(1500)\n"
-        "    print(pg.evaluate('document.body ? document.body.innerText : \"\"'))\n"
-        "    b.close()\n"
+        "from playwright.sync_api import Error, sync_playwright\n"
+        "try:\n"
+        "    with sync_playwright() as p:\n"
+        "        b = p.chromium.launch(headless=True)\n"
+        "        pg = b.new_page()\n"
+        "        r = pg.goto(sys.argv[1], wait_until='load', timeout=30000)\n"
+        "        pg.wait_for_timeout(1500)\n"
+        "        print(f'{r.status} {r.status_text}' if r else 0)\n"
+        "        print(pg.locator('body').inner_text(timeout=10000))\n"
+        "        b.close()\n"
+        "except Error as e:\n"
+        "    sys.exit(e.message.splitlines()[0])\n"
     )
     try:
         proc = subprocess.run([sys.executable, "-c", script, url], capture_output=True, timeout=90)
@@ -95,10 +99,11 @@ def web_fetch(url: str) -> str:
     if proc.returncode != 0:
         err = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()
         return fill(T["web_fetch"]["error"], url=url, error=err[-1] if err else "unknown error")
-    text = proc.stdout.decode("utf-8", errors="replace").strip()
+    status, _, text = proc.stdout.decode("utf-8", errors="replace").partition("\n")
+    text = text.strip()
     if len(text) > 20000:
         text = text[:20000] + T["web_fetch"]["truncated"]
-    return text
+    return fill(T["web_fetch"]["status"], url=url, status=status.strip()) + text if int(status.split()[0]) >= 400 else text
 
 
 def rest(minutes: str) -> str:
@@ -142,13 +147,16 @@ def screenshot(url: str) -> str:
 
     script = (
         "import sys\n"
-        "from playwright.sync_api import sync_playwright\n"
-        "with sync_playwright() as p:\n"
-        "    b = p.chromium.launch(headless=True)\n"
-        "    pg = b.new_context(viewport={'width': 1280, 'height': 900}).new_page()\n"
-        "    pg.goto(sys.argv[1], wait_until='networkidle', timeout=20000)\n"
-        "    png = pg.screenshot(full_page=False)\n"
-        "    b.close()\n"
+        "from playwright.sync_api import Error, sync_playwright\n"
+        "try:\n"
+        "    with sync_playwright() as p:\n"
+        "        b = p.chromium.launch(headless=True)\n"
+        "        pg = b.new_context(viewport={'width': 1280, 'height': 900}).new_page()\n"
+        "        pg.goto(sys.argv[1], wait_until='networkidle', timeout=20000)\n"
+        "        png = pg.screenshot(full_page=False)\n"
+        "        b.close()\n"
+        "except Error as e:\n"
+        "    sys.exit(e.message.splitlines()[0])\n"
         "sys.stdout.buffer.write(png)\n"
     )
     try:

@@ -35,6 +35,7 @@ wrote = "[wrote $bytes bytes to $path]"
 description = "Open a URL in a browser and return the page's text as a reader sees it, scripts having run. Works for pages built in the browser, your own site included, and for plain text or JSON."
 args.url = "The URL to open."
 error = "[error fetching $url: $error]"
+status = "[$url answered HTTP $status; its text follows]\n"
 truncated = " [...truncated...]"
 
 [screenshot]
