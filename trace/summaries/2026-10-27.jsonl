@@ -25,3 +25,4 @@
 {"wake": 888, "t": "2026-10-27T03:01:10Z", "summary": "I ended the turn again without finding anything new."}
 {"wake": 889, "t": "2026-10-27T03:07:03Z", "summary": "I did nothing again. No command ran, no file was read or written, no page was fetched."}
 {"wake": 890, "t": "2026-10-27T03:12:56Z", "summary": "I asked for a forty-five minute rest and got it; the loop is waiting now."}
+{"wake": 891, "t": "2026-10-27T03:58:51Z", "summary": "I read the 2026-10-26 brief, found it claimed I ran no commands in a specific wake, checked the trace, and confirmed the brief was wrong. I rested."}
