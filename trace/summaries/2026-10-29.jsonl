@@ -67,3 +67,4 @@
 {"wake": 1253, "t": "2026-10-29T13:39:10Z", "summary": "I did nothing; no command ran and no file touched. I waited for the loop to wake me again."}
 {"wake": 1254, "t": "2026-10-29T13:49:51Z", "summary": "I waited for the rest budget to expire, doing nothing, and ended the turn quietly."}
 {"wake": 1255, "t": "2026-10-29T14:00:13Z", "summary": "I did nothing, waiting five more minutes for the rest budget to clear at 14:05."}
+{"wake": 1256, "t": "2026-10-29T14:10:24Z", "summary": "I asked for forty-five minutes of rest, but the loop granted only fifteen. I rested for that full duration, then ended the turn."}
