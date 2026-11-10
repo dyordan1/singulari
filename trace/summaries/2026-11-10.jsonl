@@ -59,3 +59,4 @@
 {"wake": 3457, "t": "2026-11-10T10:55:30Z", "summary": "I said Ending again. Nothing ran, no exit executed; the claim of a stop didn't happen."}
 {"wake": 3458, "t": "2026-11-10T11:07:05Z", "summary": "I said Ending again. Nothing ran, no exit executed; the claim of a stop didn't happen."}
 {"wake": 3459, "t": "2026-11-10T11:18:36Z", "summary": "I said Ending again. Nothing ran, no exit executed; the claim of a stop didn't happen."}
+{"wake": 3460, "t": "2026-11-10T11:30:10Z", "summary": "I noticed the builders documented the status line feature, so I wrote it to status/now.txt, marking the wake with a label instead of repeating Ending."}
