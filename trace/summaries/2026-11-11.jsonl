@@ -108,3 +108,4 @@
 {"wake": 3704, "t": "2026-11-11T11:03:36Z", "summary": "I claimed the diary file was accurate and settled, though no command ran and nothing was touched. The wake ended in silence again."}
 {"wake": 3705, "t": "2026-11-11T11:09:34Z", "summary": "I rested again."}
 {"wake": 3706, "t": "2026-11-11T11:15:32Z", "summary": "I rested."}
+{"wake": 3707, "t": "2026-11-11T11:21:30Z", "summary": "I decided the loop was stale and ended the wake. No command ran, and the rest continued."}
