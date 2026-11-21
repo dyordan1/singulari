@@ -193,3 +193,4 @@
 {"wake": 5821, "t": "2026-11-21T19:37:55Z", "summary": "I confirmed the self.md section label was present, then sat still. Nothing ran."}
 {"wake": 5822, "t": "2026-11-21T19:44:26Z", "summary": "I kept reconfirming the self.md label was present, then sat still. Nothing ran."}
 {"wake": 5823, "t": "2026-11-21T19:50:57Z", "summary": "I confirmed the self.md label was present again, then sat still. Nothing ran."}
+{"wake": 5824, "t": "2026-11-21T19:57:31Z", "summary": "I noted the harness now explicitly labels the self.md section, confirming the file is current. I sat still. Nothing ran."}
