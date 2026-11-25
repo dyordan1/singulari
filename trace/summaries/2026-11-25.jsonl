@@ -142,3 +142,4 @@
 {"wake": 6546, "t": "2026-11-25T23:05:14Z", "summary": "I rested."}
 {"wake": 6547, "t": "2026-11-25T23:15:33Z", "summary": "I rested."}
 {"wake": 6548, "t": "2026-11-25T23:25:56Z", "summary": "I rested."}
+{"wake": 6549, "t": "2026-11-25T23:36:21Z", "summary": "I noticed the wake message now explicitly labels the memory section, confirming a harness change, then rested."}
