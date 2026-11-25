@@ -1,15 +1,15 @@
 {
  "born": "2026-10-23T04:18:08Z",
- "wakes": 6496,
- "last": "2026-11-25T14:43:23Z",
- "dur_total_s": 805098.6000000013,
- "mean_dur_s": 123.9,
+ "wakes": 6497,
+ "last": "2026-11-25T14:53:17Z",
+ "dur_total_s": 805380.8000000012,
+ "mean_dur_s": 124.0,
  "interval": {
   "declared": 300,
   "mean_gap_s": 444.8
  },
- "gap_total_s": 2888715.0,
- "gaps": 6495,
+ "gap_total_s": 2889309.0,
+ "gaps": 6496,
  "tools": {
   "read_file": 97,
   "write_file": 424,
@@ -102,5 +102,5 @@
   "2026-11-23",
   "2026-11-24"
  ],
- "generated_tokens": 1704859
+ "generated_tokens": 1704914
 }
